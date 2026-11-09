@@ -161,7 +161,7 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
     <ul id="plist"></ul>
     <div id="chatBox" hidden><ul id="chatLog" aria-live="polite" aria-label="대화"></ul>
       <form id="chatForm" class="chatrow"><input type="text" id="chatIn" maxlength="20" placeholder="대화하기 (한 번에 20자)" autocomplete="off" enterkeyhint="send" aria-label="대화 입력"><span id="chatCnt" class="hint">0/20</span><button type="submit" class="primary" id="chatSend">보내기</button></form></div>
-    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="soundBtn" type="button" aria-pressed="true">🔔 소리 켬</button><button id="musicBtn" type="button" aria-pressed="true">🎵 캐롤 켬</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button><button id="ownerToggle" class="primary" type="button" hidden aria-controls="ownerPanel" aria-expanded="false">내 상태 바꾸기</button></div>
+    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="soundBtn" type="button" aria-pressed="true">🔔 소리 켬</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button><button id="ownerToggle" class="primary" type="button" hidden aria-controls="ownerPanel" aria-expanded="false">내 상태 바꾸기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
   <section class="card owner" id="ownerPanel" hidden>
@@ -860,13 +860,13 @@ function onGB(list){var cut=Date.now()-86400000;gbItems=Array.isArray(list)?list
 
 /* ---------- doorbell: "ding-dong" when a new visitor arrives ---------- */
 var actx=null,soundOn=store("myroom.sound")!=="off",knownPeers=null,leftNames={},lastBell=0;
-function unlockAudio(){try{if(!actx){var AC=window.AudioContext||window.webkitAudioContext;if(AC)actx=new AC()}if(!actx)return;if(actx.state==="suspended")actx.resume().then(function(){if(musicOn)startMusic()},function(){});else if(musicOn)startMusic()}catch(e){}}
+function unlockAudio(){try{if(!actx){var AC=window.AudioContext||window.webkitAudioContext;if(AC)actx=new AC()}if(actx&&actx.state==="suspended")actx.resume()}catch(e){}}
 ["pointerdown","keydown","touchstart"].forEach(function(ev){window.addEventListener(ev,unlockAudio,{passive:true})});
 function tone(f,t0,dur,vol){var o=actx.createOscillator(),o2=actx.createOscillator(),g=actx.createGain();o.type="sine";o2.type="sine";o.frequency.value=f;o2.frequency.value=f*2.01;
   var g2=actx.createGain();g2.gain.value=0.18;o2.connect(g2);g2.connect(g);o.connect(g);g.connect(actx.destination);
   g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
   o.start(t0);o2.start(t0);o.stop(t0+dur+0.05);o2.stop(t0+dur+0.05)}
-function dingDong(){if(!soundOn||!actx||actx.state!=="running")return;var n=Date.now();if(n-lastBell<1500)return;lastBell=n;duckMusic();var t=actx.currentTime+0.02;tone(659.25,t,1.1,0.32);tone(523.25,t+0.42,1.5,0.32)}
+function dingDong(){if(!soundOn||!actx||actx.state!=="running")return;var n=Date.now();if(n-lastBell<1500)return;lastBell=n;var t=actx.currentTime+0.02;tone(659.25,t,1.1,0.32);tone(523.25,t+0.42,1.5,0.32)}
 function renderSoundBtn(){var b=$("soundBtn");b.textContent=soundOn?"🔔 소리 켬":"🔕 소리 끔";b.setAttribute("aria-pressed",String(soundOn));b.title=soundOn?"새 방문자가 오면 띵동 소리가 나요":"소리가 꺼져 있어요"}
 $("soundBtn").addEventListener("click",function(){soundOn=!soundOn;store("myroom.sound",soundOn?"on":"off");renderSoundBtn();unlockAudio();if(soundOn){lastBell=0;setTimeout(dingDong,60)}});
 renderSoundBtn();
@@ -884,73 +884,6 @@ function checkArrivals(list){
       ring=true;names.push(pr.role==="owner"?(view.owner||"방 주인"):(nm||"새 손님"))});
     if(!ring)return;dingDong();toast("띵동! "+names.join(", ")+"님이 들어왔어요")},700);
 }
-/* ---------- background music: gentle public-domain carols, cozy farm-game style ---------- */
-var musicOn=store("myroom.music")!=="off",mus=null;
-function n2f(n){var m=/^([A-G])(#|b)?(\d)$/.exec(n);if(!m)return 0;var k={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]]+(m[2]==="#"?1:m[2]==="b"?-1:0);return 440*Math.pow(2,(k+(+m[3]+1)*12-69)/12)}
-var CHORD={C:["C3","C4","E4","G4"],G:["G2","B3","D4","G4"],G7:["G2","B3","F4","G4"],F:["F2","A3","C4","F4"],Am:["A2","A3","C4","E4"],D:["D3","F#3","A3","D4"],D7:["D3","F#3","C4","A3"]};
-/* all three melodies are traditional and in the public domain */
-var SONGS=[
-  {bpm:64,up:0,mel:"G4:1.5 A4:.5 G4:1 E4:3 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 B4:3 C5:2 C5:1 G4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 A4:2 A4:1 C5:1.5 B4:.5 A4:1 G4:1.5 A4:.5 G4:1 E4:3 D5:2 D5:1 F5:1.5 D5:.5 B4:1 C5:3 E5:3 C5:1 G4:1 E4:1 G4:1.5 F4:.5 D4:1 C4:6",
-   ch:"C:3 C:3 C:3 C:3 G:3 G:3 C:3 C:3 F:3 F:3 C:3 C:3 F:3 F:3 C:3 C:3 G:3 G7:3 C:3 C:3 C:3 G7:3 C:6"},
-  {bpm:92,up:12,mel:"G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 D4:.5 E4:.5 F4:.5 D4:.5 E4:1.5 D4:.5 C4:1 B3:1 C4:2 G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 D4:.5 E4:.5 F4:.5 D4:.5 E4:1.5 D4:.5 C4:1 B3:1 C4:2 D4:1.5 E4:.5 F4:1 D4:1 E4:1.5 F4:.5 G4:1 D4:1 E4:.5 F#4:.5 G4:1 A4:.5 B4:.5 C5:1 B4:1 A4:1 G4:2 G4:1.5 F4:.5 E4:1 D4:1 C4:1 D4:1 E4:1 C4:1 A4:.5 A4:.5 A4:.5 A4:.5 G4:1.5 F4:.5 E4:1 D4:1 C4:2",
-   ch:"C:2 C:2 C:2 C:2 G7:2 C:2 G:2 C:2 C:2 C:2 C:2 C:2 G7:2 C:2 G:2 C:2 G:2 G:2 C:2 G:2 D:2 Am:2 D7:2 G:2 C:2 C:2 C:2 C:2 F:2 C:2 G7:2 C:2"},
-  {bpm:100,up:12,mel:"E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4 F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 G4:1 G4:1 F4:1 D4:1 C4:4",
-   ch:"C:4 C:4 C:4 C:4 F:4 C:4 D7:4 G7:4 C:4 C:4 C:4 C:4 F:4 C:4 G7:4 C:4"}
-];
-function parseSong(S){
-  var spb=60/S.bpm,ev=[],t=0;
-  S.mel.split(" ").forEach(function(tok){var a=tok.split(":"),d=+a[1];ev.push({t:t*spb,k:"lead",f:n2f(a[0])*Math.pow(2,S.up/12),d:d*spb});t+=d});
-  var len=t;t=0;var i=0;
-  S.ch.split(" ").forEach(function(tok){var a=tok.split(":"),d=+a[1],c=CHORD[a[0]]||CHORD.C;
-    ev.push({t:t*spb,k:"bass",f:n2f(c[0]),d:Math.min(d,2)*spb*0.95});
-    ev.push({t:t*spb,k:"pad",fs:c.slice(1).map(n2f),d:d*spb});
-    if(i%2===0&&d>=2){c.slice(1).forEach(function(n,j){ev.push({t:(t+0.5+j*0.5)*spb,k:"bell",f:n2f(n)*4,d:1.2})})}
-    t+=d;i++});
-  ev.sort(function(a,b){return a.t-b.t});return {ev:ev,len:Math.max(len,t)*spb,gap:2*spb};
-}
-var PARSED=null;
-function voice(type,f,t0,dur,vol,att,rel,dest){
-  var o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.setValueAtTime(f,t0);
-  g.gain.setValueAtTime(0.0001,t0);g.gain.linearRampToValueAtTime(vol,t0+att);g.gain.setValueAtTime(vol,Math.max(t0+att,t0+dur-rel));g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+rel);
-  o.connect(g);g.connect(dest);o.start(t0);o.stop(t0+dur+rel+0.05);return o}
-function playEv(e,t0){
-  var m=mus.bus;
-  if(e.k==="lead"){var o=voice("triangle",e.f,t0,e.d*0.9,0.5,0.03,0.18,m);var o2=voice("sine",e.f*2,t0,e.d*0.8,0.08,0.03,0.15,m);
-    if(e.d>0.6){var lfo=actx.createOscillator(),lg=actx.createGain();lfo.frequency.value=5;lg.gain.value=e.f*0.004;lfo.connect(lg);lg.connect(o.frequency);lfo.start(t0+0.25);lfo.stop(t0+e.d+0.2)}}
-  else if(e.k==="pad"){e.fs.forEach(function(f){voice("triangle",f,t0,e.d,0.07,0.35,0.45,m)})}
-  else if(e.k==="bass"){voice("sine",e.f,t0,e.d,0.32,0.02,0.2,m);voice("triangle",e.f,t0,e.d*0.6,0.1,0.02,0.15,m)}
-  else if(e.k==="bell"){voice("sine",e.f,t0,0.05,0.07,0.005,1.1,m);voice("sine",e.f*2.76,t0,0.03,0.015,0.005,0.5,m)}
-}
-function musicTick(){
-  if(!mus||!mus.run)return;var now=actx.currentTime,P=PARSED[mus.song];
-  while(mus.i<P.ev.length&&mus.start+P.ev[mus.i].t<now+0.6){var e=P.ev[mus.i++],at=mus.start+e.t;if(at>=now-0.05)playEv(e,Math.max(at,now))}
-  if(mus.i>=P.ev.length&&now>mus.start+P.len){mus.start=mus.start+P.len+P.gap;mus.song=(mus.song+1)%PARSED.length;mus.i=0}
-}
-var MUSIC_VOL=0.16; // "중간 정도" 볼륨
-function startMusic(){
-  if(!musicOn||!actx||actx.state!=="running"||document.hidden)return;
-  if(!PARSED)PARSED=SONGS.map(parseSong);
-  if(!mus){var bus=actx.createGain(),lp=actx.createBiquadFilter(),out=actx.createGain(),dl=actx.createDelay(1),fb=actx.createGain(),wet=actx.createGain();
-    lp.type="lowpass";lp.frequency.value=2600;lp.Q.value=0.4;dl.delayTime.value=0.34;fb.gain.value=0.25;wet.gain.value=0.22;out.gain.value=0;
-    bus.connect(lp);lp.connect(out);lp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(wet);wet.connect(out);out.connect(actx.destination);
-    mus={bus:bus,out:out,run:false,song:0,i:0,start:0,timer:null}}
-  if(mus.run)return;
-  mus.run=true;mus.i=0;mus.start=actx.currentTime+0.3;
-  var g=mus.out.gain;g.cancelScheduledValues(actx.currentTime);g.setValueAtTime(g.value,actx.currentTime);g.linearRampToValueAtTime(MUSIC_VOL,actx.currentTime+3);
-  mus.timer=setInterval(musicTick,120);musicTick();
-}
-function stopMusic(){
-  if(!mus||!mus.run)return;mus.run=false;clearInterval(mus.timer);
-  var g=mus.out.gain,n=actx.currentTime;g.cancelScheduledValues(n);g.setValueAtTime(g.value,n);g.linearRampToValueAtTime(0,n+0.6);
-  mus.song=(mus.song+1)%SONGS.length; // next time, start with the next carol
-}
-function duckMusic(){if(!mus||!mus.run)return;var g=mus.out.gain,n=actx.currentTime;g.cancelScheduledValues(n);g.setValueAtTime(g.value,n);g.linearRampToValueAtTime(MUSIC_VOL*0.35,n+0.1);g.linearRampToValueAtTime(MUSIC_VOL*0.35,n+1.6);g.linearRampToValueAtTime(MUSIC_VOL,n+2.6)}
-function renderMusicBtn(){var b=$("musicBtn");b.textContent=musicOn?"🎵 캐롤 켬":"🎵 캐롤 끔";b.setAttribute("aria-pressed",String(musicOn));b.title=musicOn?"잔잔한 캐롤이 나와요":"캐롤이 꺼져 있어요"}
-$("musicBtn").addEventListener("click",function(){musicOn=!musicOn;store("myroom.music",musicOn?"on":"off");renderMusicBtn();unlockAudio();if(musicOn)startMusic();else stopMusic()});
-renderMusicBtn();
-document.addEventListener("visibilitychange",function(){if(document.hidden)stopMusic();else if(musicOn&&actx){if(actx.state!=="running")actx.resume().then(startMusic,function(){});else startMusic()}});
-setTimeout(function(){if(musicOn&&(!actx||actx.state!=="running"))toast("화면을 한 번 누르면 잔잔한 캐롤이 흘러요 🎵")},1800);
-
 /* ---------- chat (max 20 chars per message) ---------- */
 var chatItems=[],ownerSay=null;
 function renderChat(){
