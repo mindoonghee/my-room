@@ -248,7 +248,7 @@ var reduced=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").ma
 var toastT;function toast(t){var el=$("toast");el.textContent=t;el.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show")},3200)}
 
 /* ---------- pixel house (2D dot art, 3 floors) ---------- */
-var canvas=$("scene"),ctx=null,buf=null,bx=null,backC=null,frontC=null,labels=[],guests={};
+var canvas=$("scene"),ctx=null,buf=null,bx=null,backC=null,frontC=null,charC=null,chx=null,labels=[],guests={};
 var hasGL=!!(canvas&&canvas.getContext);
 var CHARS={m:{t:"남자"},f:{t:"여자"},cat:{t:"고양이",fur:"#f0a35a"},dog:{t:"강아지",fur:"#c99566"},tiger:{t:"호랑이",fur:"#f08a2c"},rabbit:{t:"토끼",fur:"#f3efea"},mouse:{t:"쥐",fur:"#bdb7b2"},bear:{t:"곰",fur:"#8f5f3e"},roach:{t:"바퀴벌레",fur:"#a8683c"}};
 var CHAR_KEYS=Object.keys(CHARS);
@@ -687,21 +687,29 @@ function paint(t,dt){
   ctx.imageSmoothingEnabled=false;ctx.drawImage(buf,Math.round(ox),Math.round(oy),Math.round(LW*s),Math.round(LH*s));
 }
 function frame(t,dt){
-  bx.clearRect(0,0,LW,LH);bx.drawImage(backC,0,0);
-  var onTop=view.zone==="clean"; // cleaning owner walks in front of all furniture
-  if(view.zone!=="out"&&!onTop)drawOwner(t);
-  bx.drawImage(frontC,0,0);
-  for(var k in guests)drawWalker(guests[k],t);
-  if(self)drawWalker(self,t);
-  if(onTop)drawOwner(t);
-  // evening/night tint over the whole house, warmth comes back from the lamps
+  // 1) the house: furniture, night tint, windows, screens, lamps and light glows
+  bx.clearRect(0,0,LW,LH);bx.drawImage(backC,0,0);bx.drawImage(frontC,0,0);
   bx.globalCompositeOperation="source-atop";
   bx.fillStyle="rgba(40,18,10,"+(0.10+0.08*night).toFixed(3)+")";bx.fillRect(0,ROOF,LW,GROUND-ROOF);
   if(night>0)bx.fillStyle="rgba(12,16,44,"+(0.34*night).toFixed(3)+")",bx.fillRect(0,0,LW,LH);
   bx.globalCompositeOperation="source-over";
-  drawWindows(t);drawLive(t);drawGlows(t);drawZoneMarks(t);
-}
-function loop(ms){
+  drawWindows(t);drawLive(t);drawGlows(t);
+  // 2) characters on their own layer, always drawn above every lamp, TV and light
+  var hx=bx;bx=chx;bx.clearRect(0,0,LW,LH);
+  var onTop=view.zone==="clean";
+  if(view.zone!=="out"&&!onTop){drawOwner(t);
+    // seated owner: only chair backs / table / tub front that really sit in front may cover the body
+    bx.globalCompositeOperation="source-atop";bx.drawImage(frontC,0,0);bx.globalCompositeOperation="source-over"}
+  for(var k in guests)drawWalker(guests[k],t);
+  if(self)drawWalker(self,t);
+  if(onTop)drawOwner(t);
+  bx.globalCompositeOperation="source-atop";
+  bx.fillStyle="rgba(40,18,10,"+(0.08+0.06*night).toFixed(3)+")";bx.fillRect(0,0,LW,LH);
+  if(night>0)bx.fillStyle="rgba(12,16,44,"+(0.22*night).toFixed(3)+")",bx.fillRect(0,0,LW,LH);
+  bx.globalCompositeOperation="source-over";
+  bx=hx;bx.drawImage(charC,0,0);
+  drawZoneMarks(t);
+}function loop(ms){
   var t=ms/1000,dt=Math.min(0.05,Math.max(0,(ms-(lastMs||ms))/1000));lastMs=ms;
   stepSelf(dt);if(self)animWalker(self,t,dt);for(var k in guests)animWalker(guests[k],t,dt);
   frame(t,dt);paint(t,dt);
@@ -722,7 +730,7 @@ function onTap(e){
 }
 function initGL(){
   ctx=canvas.getContext("2d");buf=document.createElement("canvas");buf.width=LW;buf.height=LH;
-  backC=document.createElement("canvas");backC.width=LW;backC.height=LH;frontC=document.createElement("canvas");frontC.width=LW;frontC.height=LH;
+  backC=document.createElement("canvas");backC.width=LW;backC.height=LH;frontC=document.createElement("canvas");frontC.width=LW;frontC.height=LH;charC=document.createElement("canvas");charC.width=LW;charC.height=LH;chx=charC.getContext("2d");
   bx=backC.getContext("2d");drawBack();bx=frontC.getContext("2d");drawFront();bx=buf.getContext("2d");
   initSnow();applyTime();
   mainLbl=addLabel("main",function(v){var h=ownerHead();if(!h)return false;v.x=h.x;v.y=h.y-2;return true});
