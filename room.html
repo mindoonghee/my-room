@@ -108,7 +108,7 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
   <aside class="card people">
     <h2>지금 방에 있는 사람 <small id="count"></small></h2>
     <ul id="plist"></ul>
-    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button></div>
+    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
   <section class="card owner" id="ownerPanel" hidden>
@@ -130,7 +130,7 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
     <h2>방 주인 확인</h2>
     <p class="hint">서버에 설정한 주인 키를 입력하세요. 이 기기에만 저장돼요.</p>
     <input type="password" id="keyIn" autocomplete="current-password">
-    <div class="row"><button type="submit" class="primary">확인</button></div>
+    <div class="row"><button type="button" id="keyCancel">취소</button><button type="submit" class="primary">방 주인으로 들어가기</button></div>
   </form>
 </div>
 <div class="dlg" id="nameDlg" hidden>
@@ -743,16 +743,21 @@ function wsRoom(){
     onPeers:function(h){handlers.push(h);return function(){}}};
 }
 function onAuth(ok){
-  if(ok){if(!isOwnerUI)enableOwner();$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;
-    if(self){dropWalker(self);self=null}room.presence({name:view.owner||"방 주인",color:view.color});renderPeople()}
-  else{store("myroom.ownerKey","");toast("주인 키가 맞지 않아요.");askKey()}
+  if(ok){var first=!isOwnerUI;if(first)enableOwner();$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;$("ownerBtn").hidden=true;
+    if(self){dropWalker(self);self=null;if(destRing)destRing.visible=false}room.presence({name:view.owner||"방 주인",color:view.color});renderPeople();
+    if(first)toast("방 주인으로 들어왔어요. 아래에서 바꾸면 바로 반영돼요.")}
+  else{store("myroom.ownerKey","");$("ownerBtn").hidden=false;toast("주인 키가 맞지 않아요. 다시 입력해 주세요.");askKey()}
 }
-function askKey(){var d=$("keyDlg"),inp=$("keyIn");d.hidden=false;inp.value="";setTimeout(function(){inp.focus()},50);
-  $("keyForm").onsubmit=function(e){e.preventDefault();var k=inp.value.trim();if(!k)return;store("myroom.ownerKey",k);d.hidden=true;room.send({t:"auth",key:k})}}
+function askKey(){
+  if(isOwnerUI)return;var d=$("keyDlg"),inp=$("keyIn");$("nameDlg").hidden=true;d.hidden=false;inp.value="";setTimeout(function(){inp.focus()},50);
+  $("keyCancel").onclick=function(){d.hidden=true;if(location.hash==="#owner")history.replaceState(null,"",location.pathname);$("renameBtn").hidden=false;if(!myName)askName()};
+  $("keyForm").onsubmit=function(e){e.preventDefault();var k=inp.value.trim();if(!k)return;store("myroom.ownerKey",k);d.hidden=true;toast("주인 키 확인 중…");room.send({t:"auth",key:k})}}
+$("ownerBtn").addEventListener("click",askKey);
+window.addEventListener("hashchange",function(){if(window.ROOM_SERVER&&location.hash==="#owner"&&!isOwnerUI)askKey()});
 if(window.ROOM_SERVER){
   room=wsRoom();
   if(location.hash==="#owner"||store("myroom.ownerKey")){if(!store("myroom.ownerKey"))askKey()}
-  else{$("renameBtn").hidden=false;if(!myName)askName()}
+  else{$("renameBtn").hidden=false;$("ownerBtn").hidden=false;if(!myName)askName()}
   room.presence({name:myName||"손님",color:myColor(),wave:0,char:myChar});
   room.onPeers(function(ch){peersNow=ch.peers;renderPeople()});
 }else{
