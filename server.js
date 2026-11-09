@@ -15,6 +15,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const STATUS_FILE = path.join(DATA_DIR, "status.json");
 const GB_FILE = path.join(DATA_DIR, "guestbook.json");
 const GB_MAX = 50; // 방명록은 최근 50개까지 보관하고 보여줘요
+const GB_TTL = 24 * 60 * 60 * 1000; // 방명록 글은 24시간 동안만 남아요
 
 const ZONES = ["living", "read", "desk", "kitchen", "dining", "bed", "bath", "out"];
 const AVAILS = ["free", "busy", "dnd"];
@@ -41,6 +42,13 @@ function saveGuestbook() {
     catch (e) { console.error("방명록 저장 실패:", e.message); }
   }, 300);
 }
+// 24시간 지난 글 지우기. 지운 게 있으면 true
+function pruneGuestbook() {
+  const cut = Date.now() - GB_TTL, before = guestbook.length;
+  guestbook = guestbook.filter((g) => g && +g.at > cut);
+  return guestbook.length !== before;
+}
+pruneGuestbook();
 let gbLastGlobal = [];
 // ---------- 대화 (메모리에만, 최근 30개) ----------
 let chats = [];
@@ -126,6 +134,7 @@ wss.on("connection", (ws) => {
   const c = { id: "p" + (nextId++), presence: {}, owner: false, joinedAt: Date.now(), msgs: 0, windowStart: Date.now(), alive: true, authTries: 0 };
   c.presence.role = "guest"; c.presence.joinedAt = c.joinedAt;
   clients.set(ws, c);
+  if (pruneGuestbook()) saveGuestbook();
   ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook, chats }));
   broadcastPeers();
 
@@ -171,6 +180,7 @@ wss.on("connection", (ws) => {
       gbLastGlobal = gbLastGlobal.filter((t) => now - t < 60000);
       if ((c.gbAt && now - c.gbAt < 10000) || gbLastGlobal.length >= 20) { ws.send(JSON.stringify({ t: "gb_err", msg: "slow" })); return; }
       c.gbAt = now; gbLastGlobal.push(now);
+      pruneGuestbook();
       guestbook.push({ id: crypto.randomBytes(6).toString("hex"), name, text, at: now, owner: c.owner });
       if (guestbook.length > GB_MAX) guestbook = guestbook.slice(-GB_MAX);
       saveGuestbook();
@@ -194,6 +204,9 @@ wss.on("connection", (ws) => {
   ws.on("close", () => { if (clients.delete(ws)) broadcastPeers(); });
   ws.on("error", () => {});
 });
+
+// 1분마다 24시간 지난 방명록 글을 지우고 모두에게 알려요
+setInterval(() => { if (pruneGuestbook()) { saveGuestbook(); broadcast({ t: "gb", list: guestbook }); } }, 60000);
 
 // 끊긴 연결 정리
 setInterval(() => {
