@@ -829,7 +829,7 @@ function renderGB(){
 function openGB(){
   var d=$("gbDlg");d.hidden=false;var ok=!!(window.ROOM_SERVER&&room);
   $("gbAs").textContent=gbWho()+" 이름으로 남겨요";$("gbText").disabled=!ok;$("gbSend").disabled=!ok;
-  $("gbHint").textContent=ok?"빨간 우체통에 한마디 남겨 주세요. 방에 들어온 모두가 볼 수 있어요.":"방명록은 공유 링크로 들어온 방에서 쓸 수 있어요.";
+  $("gbHint").textContent=ok?"빨간 우체통에 한마디 남겨 주세요. 최근 50개까지 모두가 볼 수 있어요.":"방명록은 공유 링크로 들어온 방에서 쓸 수 있어요.";
   renderGB();if(ok)setTimeout(function(){$("gbText").focus()},50);
 }
 function closeGB(){$("gbDlg").hidden=true}
@@ -840,7 +840,7 @@ $("gbText").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftK
 $("gbForm").addEventListener("submit",function(e){e.preventDefault();if(!window.ROOM_SERVER||!room)return;var t=clean($("gbText").value,200);if(!t)return;
   room.send({t:"gb_add",name:gbWho(),text:t});$("gbText").value="";var sb=$("gbSend");sb.disabled=true;setTimeout(function(){sb.disabled=false},1500)});
 $("gbList").addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button[data-id]");if(!b||!isOwnerUI||!room)return;if(confirm("이 글을 방명록에서 지울까요?"))room.send({t:"gb_del",id:b.getAttribute("data-id")})});
-function onGB(list){gbItems=Array.isArray(list)?list.filter(function(it){return it&&typeof it.text==="string"}).map(function(it){return {id:String(it.id),name:clean(it.name,16)||"손님",text:clean(it.text,200),at:+it.at||0,owner:!!it.owner}}):[];renderGB()}
+function onGB(list){gbItems=Array.isArray(list)?list.slice(-50).filter(function(it){return it&&typeof it.text==="string"}).map(function(it){return {id:String(it.id),name:clean(it.name,16)||"손님",text:clean(it.text,200),at:+it.at||0,owner:!!it.owner}}):[];renderGB()}
 
 /* ---------- boot ---------- */
 if(hasGL){try{initGL()}catch(e){hasGL=false;console.error(e)}}
