@@ -77,7 +77,7 @@ function sameKey(a, b) {
 function buildPage() {
   const body = fs.readFileSync(path.join(__dirname, "room.html"), "utf8");
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">' +
     "<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}" +
     "body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>" +
     "<script>window.ROOM_SERVER=true</script></head><body>" + body + "</body></html>";
