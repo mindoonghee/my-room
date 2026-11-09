@@ -1,0 +1,16 @@
+{
+  "name": "my-room-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "로그인 없이 링크로 들어와 서로 볼 수 있는 3D 방 서버",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  }
+}
