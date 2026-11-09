@@ -112,15 +112,16 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
     <p class="hint" id="roomHint" hidden></p>
   </aside>
   <section class="card owner" id="ownerPanel" hidden>
-    <h3>내 상태 바꾸기 <span class="dirty" id="dirty" hidden>아직 반영 안 됨</span></h3>
+    <h3 id="ownerTitle">내 상태 바꾸기 <span class="dirty" id="dirty" hidden>아직 반영 안 됨</span></h3>
     <div class="field"><span>어디에 있나요? (방을 직접 눌러도 돼요)</span><div class="chips" id="zoneChips"></div></div>
     <div class="field"><span>연락</span><div class="chips" id="availChips"></div></div>
     <div class="two">
       <label class="field"><span>내 이름</span><input type="text" id="ownerName" maxlength="12" placeholder="예: 준호"></label>
       <label class="field"><span>한마디 (선택)</span><input type="text" id="msgIn" maxlength="40" placeholder="예: 과제 마감 중이라 답장 늦어요"></label>
     </div>
+    <div class="field"><span>내 캐릭터</span><div class="chips" id="ownerCharChips"></div></div>
     <div class="field"><span>캐릭터 색</span><div class="chips" id="colorChips"></div></div>
-    <div class="row" style="align-items:center"><button class="primary" id="saveBtn" type="button" disabled>방에 반영하기</button><span class="hint">반영하면 링크로 들어온 사람들 화면이 바로 바뀌어요.</span></div>
+    <div class="row" style="align-items:center"><button class="primary" id="saveBtn" type="button" disabled>방에 반영하기</button><span class="hint" id="saveHint">반영하면 링크로 들어온 사람들 화면이 바로 바뀌어요.</span></div>
   </section>
   <div class="dragtip">바닥을 누르거나 WASD·방향키로 걷기<br>드래그로 돌려보기 · 휠로 확대</div>
 </div>
@@ -194,6 +195,7 @@ function cyl(rt,rb,h,c,x,y,z,parent){var m=new THREE.Mesh(new THREE.CylinderGeom
 
 var CHARS={m:{t:"남자"},f:{t:"여자"},cat:{t:"고양이",fur:"#f0a35a"},dog:{t:"강아지",fur:"#c99566"},tiger:{t:"호랑이",fur:"#f08a2c"},rabbit:{t:"토끼",fur:"#f3efea"},mouse:{t:"쥐",fur:"#bdb7b2"},bear:{t:"곰",fur:"#8f5f3e"},roach:{t:"바퀴벌레",fur:"#a8683c"}};
 var CHAR_KEYS=Object.keys(CHARS);
+view.char=CHARS[SAVED.char]?SAVED.char:"m";
 function animalBits(sp,head,hips,FUR){
   var dark=M("#2a2320"),pink=M("#f4a7b0"),cream=M("#fbf1e2");
   function add(parent,geo,mat,x,y,z,rx,ry,rz,sx,sy,sz){var e=new THREE.Mesh(geo,mat);e.position.set(x,y,z);e.rotation.set(rx||0,ry||0,rz||0);if(sx)e.scale.set(sx,sy,sz);parent.add(e);return e}
@@ -278,8 +280,14 @@ function resetPose(P){P.root.rotation.set(0,0,0);P.hips.rotation.set(0,0,0);P.he
   P.armL.rotation.set(0,0,-0.08);P.armR.rotation.set(0,0,0.08)}
 function sit(P,seat){P.legL.th.rotation.x=P.legR.th.rotation.x=-Math.PI/2;P.legL.kn.rotation.x=P.legR.kn.rotation.x=Math.PI/2;P.root.position.y=seat+0.06-0.84*P.s}
 
+function rebuildOwner(){if(!hasGL||!owner||owner.char===view.char)return;scene.remove(owner.root);owner=makePerson(view.color,1,view.char);owner.char=view.char;scene.add(owner.root)}
 function poseOwner(t){
   var P=owner,z=ZONES[view.zone];
+  if(P.bug){P.root.visible=view.zone!=="out";if(!P.root.visible)return;var m0=reduced?0:1;
+    var y=z.pose==="sit"?(view.zone==="bath"?0.5:z.seat):z.pose==="lie"?0.66:0;P.root.position.set(z.pos[0],y,view.zone==="bed"?1.4:z.pos[2]);P.root.rotation.set(0,view.zone==="bed"?Math.PI:z.rot,0);
+    P.bug.ant.forEach(function(a,j){a.rotation.z=(j?-1:1)*0.35+Math.sin(t*(view.zone==="desk"?6:2)+j)*0.12*m0});
+    P.bug.legs.forEach(function(l){l.rotation.y=view.zone==="desk"||view.zone==="kitchen"?Math.sin(t*10+l.userData.i)*0.25*m0:0});
+    P.hips.position.y=0.13+(view.zone==="bath"?Math.sin(t*1.5)*0.02*m0:0);return}
   if(view.zone==="out"){P.root.visible=false;return}
   P.root.visible=true;resetPose(P);
   P.root.position.set(z.pos[0],z.pos[1],z.pos[2]);P.root.rotation.y=z.rot;
@@ -518,7 +526,7 @@ function initGL(){
   sun=new THREE.DirectionalLight("#fff4e4",0.4);sun.position.set(6,12,8);sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);var sc=sun.shadow.camera;sc.left=-12;sc.right=12;sc.top=12;sc.bottom=-12;sc.near=1;sc.far=40;sun.shadow.bias=-0.0008;scene.add(sun);
   buildRoom();addLamps();
-  owner=makePerson(view.color,1);scene.add(owner.root);
+  owner=makePerson(view.color,1,view.char);owner.char=view.char;scene.add(owner.root);
   ZONE_ORDER.forEach(function(k){var h=ZONES[k].hit;var ring=new THREE.Mesh(new THREE.RingGeometry(0.42,0.52,40),new THREE.MeshBasicMaterial({color:"#2f7d6d",transparent:true,opacity:0.7,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.set(h[0],k==="bed"?0.8:k==="bath"?0.6:k==="desk"||k==="dining"||k==="living"?0.03:0.05,h[1]);ring.visible=false;scene.add(ring);zoneRings[k]=ring});
   tmpV=new THREE.Vector3();
   mainLbl=addLabel("main",function(v){owner.head.getWorldPosition(v);v.y+=0.55;return v.y>-50});
@@ -595,15 +603,20 @@ function renderStatus(){
 setInterval(function(){$("ago").textContent=ago(view.updatedAt)},30000);
 
 /* ---------- owner controls ---------- */
-function isDirty(){return pend.zone!==SAVED.zone||pend.msg!==clean(SAVED.msg,40)||pend.avail!==SAVED.avail||pend.owner!==clean(SAVED.owner,12)||pend.color!==SAVED.color}
-function setPending(p){for(var k in p)pend[k]=p[k];view.zone=pend.zone;view.msg=pend.msg;view.avail=pend.avail;view.owner=pend.owner;view.color=pend.color;renderStatus();syncChips();
+function isDirty(){return pend.zone!==SAVED.zone||pend.msg!==clean(SAVED.msg,40)||pend.avail!==SAVED.avail||pend.owner!==clean(SAVED.owner,12)||pend.color!==SAVED.color||pend.char!==(CHARS[SAVED.char]?SAVED.char:"m")}
+var liveTimer;
+function curStatus(){return {owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,char:pend.char,updatedAt:Date.now()}}
+function setPending(p){for(var k in p)pend[k]=p[k];view.zone=pend.zone;view.msg=pend.msg;view.avail=pend.avail;view.owner=pend.owner;view.color=pend.color;view.char=pend.char;rebuildOwner();renderStatus();syncChips();
+  if(window.ROOM_SERVER&&room){clearTimeout(liveTimer);liveTimer=setTimeout(function(){room.send({t:"status",status:curStatus()});view.updatedAt=Date.now();renderStatus()},("msg" in p||"owner" in p)?600:80);room.presence({name:view.owner||"방 주인",color:view.color}).catch(function(){});return}
   var d=isDirty();$("dirty").hidden=!d;$("saveBtn").disabled=!d;if(room)room.presence({name:view.owner||"방 주인"}).catch(function(){})}
 function chipRow(id,items,key){var box=$(id);box.innerHTML="";items.forEach(function(it){var b=document.createElement("button");b.type="button";b.dataset.v=it.v;
   if(it.color){b.className="sw";b.style.background=it.v;b.setAttribute("aria-label","색 "+it.v)}else b.textContent=it.t;
   b.addEventListener("click",function(){var o={};o[key]=it.v;setPending(o)});box.appendChild(b)})}
-function syncChips(){[["zoneChips","zone"],["availChips","avail"],["colorChips","color"]].forEach(function(r){var bs=$(r[0]).children;for(var i=0;i<bs.length;i++)bs[i].setAttribute("aria-pressed",String(bs[i].dataset.v===pend[r[1]]))})}
+function syncChips(){[["zoneChips","zone"],["availChips","avail"],["colorChips","color"],["ownerCharChips","char"]].forEach(function(r){var bs=$(r[0]).children;for(var i=0;i<bs.length;i++)bs[i].setAttribute("aria-pressed",String(bs[i].dataset.v===pend[r[1]]))})}
 function enableOwner(){
-  isOwnerUI=true;pend={zone:view.zone,msg:view.msg,avail:view.avail,owner:view.owner,color:view.color};
+  isOwnerUI=true;pend={zone:view.zone,msg:view.msg,avail:view.avail,owner:view.owner,color:view.color,char:view.char};
+  chipRow("ownerCharChips",CHAR_KEYS.map(function(k){return {v:k,t:CHARS[k].t}}),"char");
+  if(window.ROOM_SERVER){$("saveBtn").hidden=true;$("dirty").hidden=true;$("saveHint").textContent="바꾸는 즉시 방문자 화면에 실시간으로 반영돼요.";$("ownerTitle").firstChild.textContent="내 상태 바꾸기 · 실시간 "}
   chipRow("zoneChips",ZONE_ORDER.map(function(k){return {v:k,t:ZONES[k].label}}),"zone");
   chipRow("availChips",Object.keys(AVAIL).map(function(k){return {v:k,t:AVAIL[k]}}),"avail");
   chipRow("colorChips",COLORS.map(function(c){return {v:c,color:true}}),"color");
@@ -631,15 +644,15 @@ var saving=false;
 var saveTimer;
 function applyStatus(st){
   if(!st)return;SAVED=st;
-  var n={owner:clean(st.owner,12),zone:ZONES[st.zone]?st.zone:"desk",msg:clean(st.msg,40),avail:AVAIL[st.avail]?st.avail:"free",color:COLORS.indexOf(st.color)>=0?st.color:COLORS[0],updatedAt:+st.updatedAt||0};
-  if(isOwnerUI&&!saving&&isDirty()){view.updatedAt=n.updatedAt;renderStatus();return}
-  view=n;
-  if(isOwnerUI){pend={zone:n.zone,msg:n.msg,avail:n.avail,owner:n.owner,color:n.color};$("ownerName").value=n.owner;$("msgIn").value=n.msg;syncChips();$("dirty").hidden=true;$("saveBtn").disabled=true}
+  var n={owner:clean(st.owner,12),zone:ZONES[st.zone]?st.zone:"desk",msg:clean(st.msg,40),avail:AVAIL[st.avail]?st.avail:"free",color:COLORS.indexOf(st.color)>=0?st.color:COLORS[0],updatedAt:+st.updatedAt||0,char:CHARS[st.char]?st.char:"m"};
+  if(isOwnerUI&&(window.ROOM_SERVER||(!saving&&isDirty()))){view.updatedAt=n.updatedAt;renderStatus();return}
+  view=n;rebuildOwner();
+  if(isOwnerUI){pend={zone:n.zone,msg:n.msg,avail:n.avail,owner:n.owner,color:n.color,char:n.char};$("ownerName").value=n.owner;$("msgIn").value=n.msg;syncChips();$("dirty").hidden=true;$("saveBtn").disabled=true}
   renderStatus();renderPeople();
 }
-function onSaved(ok){clearTimeout(saveTimer);saving=false;var b=$("saveBtn");b.textContent="방에 반영하기";b.disabled=ok?true:false;toast(ok?"반영했어요. 방문자 화면도 바뀌었어요.":"반영하지 못했어요. 주인 확인이 필요해요.")}
+function onSaved(ok){if(window.ROOM_SERVER){if(!ok)toast("반영하지 못했어요. 주인 확인이 필요해요.");return}clearTimeout(saveTimer);saving=false;var b=$("saveBtn");b.textContent="방에 반영하기";b.disabled=ok?true:false;toast(ok?"반영했어요. 방문자 화면도 바뀌었어요.":"반영하지 못했어요. 주인 확인이 필요해요.")}
 function save(){
-  var st={owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,updatedAt:Date.now()};
+  var st=curStatus();
   if(window.ROOM_SERVER){if(saving||!room)return;saving=true;var sb=$("saveBtn");sb.disabled=true;sb.textContent="반영하는 중…";room.send({t:"status",status:st});
     saveTimer=setTimeout(function(){if(saving){saving=false;sb.textContent="방에 반영하기";sb.disabled=false;toast("반영하지 못했어요. 연결을 확인해 주세요.")}},6000);return}
   if(saving||!artifactApi)return;saving=true;var b=$("saveBtn");b.disabled=true;b.textContent="반영하는 중…";
