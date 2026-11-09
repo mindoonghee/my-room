@@ -68,6 +68,11 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
 .pill.on i{background:var(--free);box-shadow:0 0 0 3px color-mix(in srgb,var(--free) 25%,transparent)}
 .people{grid-column:3;grid-row:1;align-self:start;display:flex;flex-direction:column;gap:10px}
 .people h2{margin:0;font-family:var(--display);font-weight:400;font-size:17px;display:flex;justify-content:space-between;align-items:baseline}
+.people h2 .hr{display:flex;gap:8px;align-items:center}
+.fold{font-family:var(--body);font-size:12px;padding:3px 10px;min-height:28px;border-radius:99px;line-height:1.2;white-space:nowrap}
+.fold.unread{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.people.folded>*:not(h2){display:none!important}
+.people.folded{gap:0}
 .people h2 small{font-family:var(--body);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 #plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto}
 #plist li{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
@@ -157,7 +162,7 @@ input[type=text],input[type=password]{font:inherit;font-size:16px;padding:8px 10
     <div class="meta"><span class="pill" id="avail"><i></i><span></span></span><span class="pill on" id="online" hidden><i></i>지금 접속 중</span><span id="ago"></span><span class="pill" id="clock"></span></div>
   </header>
   <aside class="card people">
-    <h2>지금 방에 있는 사람 <small id="count"></small></h2>
+    <h2><span>지금 방에 있는 사람</span><span class="hr"><small id="count"></small><button id="peopleFold" type="button" class="fold" aria-expanded="true" aria-controls="plist chatBox">접기 ▼</button></span></h2>
     <ul id="plist"></ul>
     <div id="chatBox" hidden><ul id="chatLog" aria-live="polite" aria-label="대화"></ul>
       <form id="chatForm" class="chatrow"><input type="text" id="chatIn" maxlength="20" placeholder="대화하기 (한 번에 20자)" autocomplete="off" enterkeyhint="send" aria-label="대화 입력"><span id="chatCnt" class="hint">0/20</span><button type="submit" class="primary" id="chatSend">보내기</button></form></div>
@@ -950,7 +955,7 @@ function onChat(m,isMe,quiet){
   if(!m||typeof m.text!=="string")return;
   var c={name:clean(m.name,16)||"손님",text:clean(m.text,20),owner:!!m.owner,me:!!isMe,at:+m.at||Date.now()};if(!c.text)return;
   chatItems.push(c);if(chatItems.length>30)chatItems.shift();
-  if(quiet)return;renderChat();
+  if(quiet)return;renderChat();if(folded&&!isMe){unread++;renderFold()}
   if(Date.now()-c.at>15000)return;
   var until=Date.now()+6000;
   if(c.owner){ownerSay={text:c.text,until:until};renderStatus();return}
@@ -963,6 +968,15 @@ $("chatForm").addEventListener("submit",function(e){e.preventDefault();if(!windo
 $("chatIn").addEventListener("input",function(){$("chatCnt").textContent=this.value.length+"/20"});
 $("chatIn").addEventListener("keydown",function(e){if(e.key==="Enter"&&e.isComposing){e.preventDefault()}});
 if(window.ROOM_SERVER){$("chatBox").hidden=false;renderChat()}
+
+/* ---------- fold / unfold the bottom card ---------- */
+var folded=store("myroom.fold")==="1",unread=0;
+function renderFold(){var c=document.querySelector(".people"),b=$("peopleFold");c.classList.toggle("folded",folded);b.setAttribute("aria-expanded",String(!folded));
+  b.textContent=folded?(unread?"펴기 ▲ · 💬"+unread:"펴기 ▲"):"접기 ▼";b.classList.toggle("unread",folded&&unread>0);b.title=folded?"방명록·대화·내 상태 버튼 펼치기":"아래 창 접기"}
+function setFold(f){folded=f;if(!f)unread=0;store("myroom.fold",f?"1":"0");renderFold();if(typeof refit==="function")refit()}
+$("peopleFold").addEventListener("click",function(e){e.stopPropagation();setFold(!folded)});
+document.querySelector(".people h2").addEventListener("click",function(){if(folded)setFold(false)});
+renderFold();
 
 /* ---------- owner name/status kept on this device ---------- */
 function savedOwner(){try{var o=JSON.parse(store("myroom.ownerStatus")||"null");return o&&typeof o==="object"?o:null}catch(e){return null}}
