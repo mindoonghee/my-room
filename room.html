@@ -489,7 +489,7 @@ function drawFront(){
 function ownerHead(){
   var sp=SPOT[view.zone];if(!sp)return null;var F=FY(sp.lv);
   if(view.char==="roach")return {x:sp.x,y:(sp.pose==="lie"?F-10:sp.pose==="bath"?F-13:F+(sp.dy||0))-9};
-  if(sp.pose==="lie")return {x:sp.x,y:F-19};if(sp.pose==="bath")return {x:sp.x,y:F-21};
+  if(sp.pose==="lie")return {x:sp.x,y:F-19};if(sp.pose==="bath")return {x:sp.x,y:F-40};
   return {x:sp.x,y:F+(sp.dy||0)-(sp.pose==="sit"||sp.pose==="read"||sp.pose==="back"?15:19)-(view.char==="rabbit"?5:0)};
 }
 function drawOwner(t){
@@ -555,9 +555,18 @@ function drawLive(t){
   // candles
   var cf=reduced?0:(Math.sin(t*13)>0?1:0);R("#ffb347",127,F0-17-cf,1,1);R("#ffcf6a",129,F0-16,1,1);
   // bath bubbles + steam
-  if(view.zone==="bath"){[[131,F0-15],[134,F0-16],[147,F0-15],[151,F0-16],[137,F0-14]].forEach(function(b,i){var bb=reduced?0:Math.round(Math.sin(t*2+i));R("#ffffff",b[0],b[1]+bb,3,2)})}
+  if(view.zone==="bath"){[[131,F0-15],[134,F0-16],[147,F0-15],[151,F0-16],[137,F0-14]].forEach(function(b,i){var bb=reduced?0:Math.round(Math.sin(t*2+i));R("#ffffff",b[0],b[1]+bb,3,2)});soapBubbles(t,F0)}
   // chimney smoke
   if(!reduced){for(var s=0;s<4;s++){var ph=((t*0.35+s/4)%1);R("rgba(220,220,230,"+(0.55*(1-ph)).toFixed(2)+")",139+Math.round(Math.sin(ph*6+s)*2),5-ph*14,2+(ph*2|0),2)}}
+}
+/* soap bubbles rising from the bathtub (replaces the old text label) */
+function bubbleAt(x,y,big,a){var c="rgba(236,248,255,"+a.toFixed(2)+")",h="rgba(255,255,255,"+Math.min(1,a+0.2).toFixed(2)+")",in_="rgba(190,225,245,"+(a*0.25).toFixed(2)+")";
+  if(big){R(c,x-1,y-2,3,1);R(c,x-1,y+2,3,1);R(c,x-2,y-1,1,3);R(c,x+2,y-1,1,3);R(in_,x-1,y-1,3,3);R(h,x-1,y-1,1,1);R("rgba(255,190,230,"+(a*0.6).toFixed(2)+")",x+1,y+1,1,1)}
+  else{R(c,x,y-1,1,1);R(c,x,y+1,1,1);R(c,x-1,y,1,1);R(c,x+1,y,1,1);R(h,x,y-1,1,1)}}
+function soapBubbles(t,F0){
+  var N=9;for(var i=0;i<N;i++){var sp=0.16+(i%4)*0.035,ph=reduced?((i*0.37)%1):((t*sp+i*0.29)%1);
+    var x0=127+((i*13)%30),x=x0+Math.sin(t*1.6+i*2.1)*(1+ph*2),y=F0-14-ph*24,a=ph<0.15?ph/0.15:ph>0.75?(1-ph)/0.25:1;
+    bubbleAt(Math.round(x),Math.round(y),i%3!==1,0.85*a)}
 }
 function drawGlows(t){
   bx.globalCompositeOperation="lighter";
@@ -662,7 +671,7 @@ function loop(ms){
   frame(t,dt);paint(t,dt);
   var nowMs=Date.now();for(var gk in guests){var GG=guests[gk];if(GG.bub&&!GG.bub.el.hidden&&nowMs>GG.sayUntil)GG.bub.el.hidden=true}if(self&&self.bub&&!self.bub.el.hidden&&nowMs>self.sayUntil)self.bub.el.hidden=true;
   if(ownerSay&&nowMs>ownerSay.until){ownerSay=null;renderStatus()}
-  var sleeping=view.zone==="bed";zzzLbl.el.hidden=!sleeping;steamLbl.el.hidden=view.zone!=="bath";signLbl.el.hidden=view.zone!=="out";
+  var sleeping=view.zone==="bed";zzzLbl.el.hidden=!sleeping;steamLbl.el.hidden=true;signLbl.el.hidden=view.zone!=="out";
   labels.forEach(function(L){if(L.el.hidden)return;if(!L.target(lblV)){L.el.style.display="none";return}
     L.el.style.display="";L.el.style.transform="translate("+(px.ox+lblV.x*px.s).toFixed(1)+"px,"+(px.oy+lblV.y*px.s).toFixed(1)+"px) "+(L.anchor||"translate(-50%,-100%)")});
   requestAnimationFrame(loop);
