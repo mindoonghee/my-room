@@ -13,8 +13,10 @@ const OWNER_KEY = process.env.OWNER_KEY || "";
 const MAX_CONNECTIONS = 60; // 방 안 10명 + 대기/구경하는 사람
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const STATUS_FILE = path.join(DATA_DIR, "status.json");
+const GB_FILE = path.join(DATA_DIR, "guestbook.json");
+const GB_MAX = 100; // 방명록은 최근 100개까지 보관
 
-const ZONES = ["living", "desk", "kitchen", "dining", "bed", "bath", "out"];
+const ZONES = ["living", "read", "desk", "kitchen", "dining", "bed", "bath", "out"];
 const AVAILS = ["free", "busy", "dnd"];
 const CHARS = ["m", "f", "cat", "dog", "tiger", "rabbit", "mouse", "bear", "roach"];
 
@@ -27,6 +29,19 @@ function saveStatus() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(STATUS_FILE, JSON.stringify(status)); }
   catch (e) { console.error("상태 저장 실패:", e.message); }
 }
+// ---------- 방명록 ----------
+let guestbook = [];
+try { const g = JSON.parse(fs.readFileSync(GB_FILE, "utf8")); if (Array.isArray(g)) guestbook = g.slice(-GB_MAX); } catch (e) { /* 처음 실행 */ }
+let gbSaveTimer = null;
+function saveGuestbook() {
+  if (gbSaveTimer) return;
+  gbSaveTimer = setTimeout(() => {
+    gbSaveTimer = null;
+    try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(GB_FILE, JSON.stringify(guestbook)); }
+    catch (e) { console.error("방명록 저장 실패:", e.message); }
+  }, 300);
+}
+let gbLastGlobal = [];
 const BAD_CHARS = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]", "g");
 function cleanText(s, n) {
   return String(s == null ? "" : s).replace(BAD_CHARS, "").trim().slice(0, n);
@@ -109,7 +124,7 @@ wss.on("connection", (ws) => {
   const c = { id: "p" + (nextId++), presence: {}, owner: false, joinedAt: Date.now(), msgs: 0, windowStart: Date.now(), alive: true, authTries: 0 };
   c.presence.role = "guest"; c.presence.joinedAt = c.joinedAt;
   clients.set(ws, c);
-  ws.send(JSON.stringify({ t: "hello", id: c.id, status }));
+  ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook }));
   broadcastPeers();
 
   ws.on("pong", () => { c.alive = true; });
@@ -126,6 +141,24 @@ wss.on("connection", (ws) => {
       c.owner = ok; c.presence.role = ok ? "owner" : "guest";
       ws.send(JSON.stringify({ t: "auth", ok }));
       broadcastPeers();
+    }
+    else if (m.t === "gb_add") {
+      const text = cleanText(m.text, 200), name = cleanText(m.name, 16) || "손님";
+      if (!text) return;
+      // 한 사람은 10초에 한 번, 방 전체는 1분에 20개까지
+      gbLastGlobal = gbLastGlobal.filter((t) => now - t < 60000);
+      if ((c.gbAt && now - c.gbAt < 10000) || gbLastGlobal.length >= 20) { ws.send(JSON.stringify({ t: "gb_err", msg: "slow" })); return; }
+      c.gbAt = now; gbLastGlobal.push(now);
+      guestbook.push({ id: crypto.randomBytes(6).toString("hex"), name, text, at: now, owner: c.owner });
+      if (guestbook.length > GB_MAX) guestbook = guestbook.slice(-GB_MAX);
+      saveGuestbook();
+      broadcast({ t: "gb", list: guestbook });
+    }
+    else if (m.t === "gb_del") {
+      if (!c.owner) return;
+      const before = guestbook.length;
+      guestbook = guestbook.filter((g) => g.id !== String(m.id));
+      if (guestbook.length !== before) { saveGuestbook(); broadcast({ t: "gb", list: guestbook }); }
     }
     else if (m.t === "status") {
       if (!c.owner) { ws.send(JSON.stringify({ t: "saved", ok: false })); return; }
