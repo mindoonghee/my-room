@@ -28,6 +28,14 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
 .lbl.main b{font-family:var(--display);font-weight:400;font-size:15px;display:block}
 .lbl.main span{font-size:12px;color:var(--muted)}
 .lbl.main::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+#chatLog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:96px;overflow:auto;font-size:13px;line-height:1.35}
+#chatLog li{overflow-wrap:anywhere}#chatLog li b{font-weight:600;margin-right:4px}#chatLog li.own b{color:var(--accent)}#chatLog li.me{opacity:.85}
+#chatLog .empty{color:var(--muted);font-size:12px}
+.chatrow{display:flex;gap:6px;align-items:center;margin-top:6px}
+.chatrow input{flex:1 1 auto;min-width:0;font:inherit;font-size:16px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.chatrow .hint{flex:none;font-variant-numeric:tabular-nums}
+.chatrow button{flex:none;font-size:15px;padding:6px 12px}
+.lbl.bubble{background:#fffdf6;color:#2a2238;border:1px solid #e2d6bd;border-radius:10px;padding:3px 8px;font-size:13px;max-width:150px;white-space:normal;text-align:center;box-shadow:0 4px 12px rgba(20,16,40,.25);overflow-wrap:anywhere}
 .lbl.guest{font-size:12px;background:rgba(0,0,0,.55);color:#fff;padding:2px 8px;border-radius:99px}
 .lbl.zzz{font-family:var(--display);font-size:20px;color:#8b8fd9;text-shadow:0 1px 0 rgba(255,255,255,.4);animation:zz 2.4s ease-in-out infinite}
 .lbl.sign{font-family:var(--display);font-size:15px;background:#fff6dc;color:#5a4410;border:2px solid #d9b45a;border-radius:6px;padding:4px 10px}
@@ -114,6 +122,9 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
   .people .row button{flex:1 1 auto;min-height:40px;padding:6px 10px}
   .people .row button.link{min-height:0;padding:0 4px}
   #roomHint{display:none}
+  #chatLog{max-height:58px;font-size:12px}
+  .chatrow{margin-top:4px}
+  .chatrow input{padding:6px 9px}
   .owner{position:fixed;left:max(8px, env(safe-area-inset-left, 0px));right:max(8px, env(safe-area-inset-right, 0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));max-width:none;max-height:52vh;max-height:52dvh;overflow:auto;z-index:5;box-shadow:0 -10px 40px rgba(10,8,20,.35);padding:14px 14px 16px}
   .owner .chips button{min-height:38px}
   .dragtip{display:none}
@@ -148,6 +159,8 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
   <aside class="card people">
     <h2>지금 방에 있는 사람 <small id="count"></small></h2>
     <ul id="plist"></ul>
+    <div id="chatBox" hidden><ul id="chatLog" aria-live="polite" aria-label="대화"></ul>
+      <form id="chatForm" class="chatrow"><input type="text" id="chatIn" maxlength="20" placeholder="대화하기 (한 번에 20자)" autocomplete="off" enterkeyhint="send" aria-label="대화 입력"><span id="chatCnt" class="hint">0/20</span><button type="submit" class="primary" id="chatSend">보내기</button></form></div>
     <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button><button id="ownerToggle" class="primary" type="button" hidden aria-controls="ownerPanel" aria-expanded="false">내 상태 바꾸기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
@@ -488,8 +501,9 @@ function drawOwner(t){
 }
 function makeWalker(color,local,ch){
   var G={char:ch,color:color,waveAt:0,x:60,z:0,lx:60,lz:0,tx:60,tz:0,ry:1,tr:1,ph:0,local:local,mv:false,seed:Math.random()*9|0};
-  G.lbl=addLabel("guest",function(v){v.x=G.x;v.y=FY(G.z)-(G.char==="roach"?9:G.char==="rabbit"?26:21);return true});return G}
-function dropWalker(G){if(G&&G.lbl)removeLabel(G.lbl)}
+  G.lbl=addLabel("guest",function(v){v.x=G.x;v.y=FY(G.z)-(G.char==="roach"?9:G.char==="rabbit"?26:21);return true});
+  G.bub=addLabel("bubble",function(v){v.x=G.x;v.y=FY(G.z)-(G.char==="roach"?9:G.char==="rabbit"?26:21);return true});G.bub.anchor="translate(-50%,calc(-100% - 24px))";G.bub.el.hidden=true;G.sayUntil=0;return G}
+function dropWalker(G){if(G&&G.lbl)removeLabel(G.lbl);if(G&&G.bub)removeLabel(G.bub)}
 function isInt(z){return Math.abs(z-Math.round(z))<0.002}
 function animWalker(G,t,dt){
   if(!G.local){if(Math.abs(G.tz-G.z)>1.6||Math.abs(G.tx-G.x)>90){G.x=G.tx;G.z=G.tz}
@@ -646,6 +660,8 @@ function loop(ms){
   var t=ms/1000,dt=Math.min(0.05,Math.max(0,(ms-(lastMs||ms))/1000));lastMs=ms;
   stepSelf(dt);if(self)animWalker(self,t,dt);for(var k in guests)animWalker(guests[k],t,dt);
   frame(t,dt);paint(t,dt);
+  var nowMs=Date.now();for(var gk in guests){var GG=guests[gk];if(GG.bub&&!GG.bub.el.hidden&&nowMs>GG.sayUntil)GG.bub.el.hidden=true}if(self&&self.bub&&!self.bub.el.hidden&&nowMs>self.sayUntil)self.bub.el.hidden=true;
+  if(ownerSay&&nowMs>ownerSay.until){ownerSay=null;renderStatus()}
   var sleeping=view.zone==="bed";zzzLbl.el.hidden=!sleeping;steamLbl.el.hidden=view.zone!=="bath";signLbl.el.hidden=view.zone!=="out";
   labels.forEach(function(L){if(L.el.hidden)return;if(!L.target(lblV)){L.el.style.display="none";return}
     L.el.style.display="";L.el.style.transform="translate("+(px.ox+lblV.x*px.s).toFixed(1)+"px,"+(px.oy+lblV.y*px.s).toFixed(1)+"px) "+(L.anchor||"translate(-50%,-100%)")});
@@ -688,7 +704,7 @@ function renderStatus(){
   var m=$("msg");m.hidden=!view.msg;m.textContent=view.msg?"“"+view.msg+"”":"";
   var a=$("avail");a.className="pill "+view.avail;a.querySelector("span").textContent=AVAIL[view.avail];
   $("ago").textContent=ago(view.updatedAt);
-  if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";mainLbl.el.querySelector("span").textContent=view.msg||z.act;mainLbl.el.hidden=view.zone==="out";
+  if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";mainLbl.el.querySelector("span").textContent=ownerSay?"💬 "+ownerSay.text:(view.msg||z.act);mainLbl.el.classList.toggle("talk",!!ownerSay);mainLbl.el.hidden=view.zone==="out";
     signLbl.el.textContent=(view.owner||"주인")+" 외출 중"}
   document.title="나만의 방";
 }
@@ -697,7 +713,7 @@ setInterval(function(){$("ago").textContent=ago(view.updatedAt)},30000);
 /* ---------- owner controls ---------- */
 function isDirty(){return pend.zone!==SAVED.zone||pend.msg!==clean(SAVED.msg,40)||pend.avail!==SAVED.avail||pend.owner!==clean(SAVED.owner,12)||pend.color!==SAVED.color||pend.char!==(CHARS[SAVED.char]?SAVED.char:"m")}
 var liveTimer;
-function curStatus(){return {owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,char:pend.char,updatedAt:Date.now()}}
+function curStatus(){try{store("myroom.ownerStatus",JSON.stringify({owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,char:pend.char}))}catch(e){}return {owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,char:pend.char,updatedAt:Date.now()}}
 function setPending(p){for(var k in p)pend[k]=p[k];view.zone=pend.zone;view.msg=pend.msg;view.avail=pend.avail;view.owner=pend.owner;view.color=pend.color;view.char=pend.char;rebuildOwner();renderStatus();syncChips();
   if(window.ROOM_SERVER&&room){clearTimeout(liveTimer);liveTimer=setTimeout(function(){room.send({t:"status",status:curStatus()});view.updatedAt=Date.now();renderStatus()},("msg" in p||"owner" in p)?600:80);room.presence({name:view.owner||"방 주인",color:view.color}).catch(function(){});return}
   var d=isDirty();$("dirty").hidden=!d;$("saveBtn").disabled=!d;if(room)room.presence({name:view.owner||"방 주인"}).catch(function(){})}
@@ -719,7 +735,7 @@ function enableOwner(){
   syncChips();$("ownerToggle").hidden=false;showOwnerPanel(false);$("waveBtn").textContent="방문자에게 손 흔들기";
 }
 function disableOwner(){isOwnerUI=false;$("ownerPanel").hidden=true;$("ownerToggle").hidden=true}
-function showOwnerPanel(on){$("ownerPanel").hidden=!on;var b=$("ownerToggle");b.setAttribute("aria-expanded",on?"true":"false");b.textContent=on?"설정 닫기":"내 상태 바꾸기"}
+function showOwnerPanel(on){if(on&&isOwnerUI){$("ownerName").value=pend.owner||"";$("msgIn").value=pend.msg||"";syncChips()}$("ownerPanel").hidden=!on;var b=$("ownerToggle");b.setAttribute("aria-expanded",on?"true":"false");b.textContent=on?"설정 닫기":"내 상태 바꾸기"}
 $("ownerToggle").addEventListener("click",function(){showOwnerPanel($("ownerPanel").hidden)});
 $("ownerClose").addEventListener("click",function(){showOwnerPanel(false);$("ownerToggle").focus()});
 
@@ -842,6 +858,42 @@ $("gbForm").addEventListener("submit",function(e){e.preventDefault();if(!window.
 $("gbList").addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button[data-id]");if(!b||!isOwnerUI||!room)return;if(confirm("이 글을 방명록에서 지울까요?"))room.send({t:"gb_del",id:b.getAttribute("data-id")})});
 function onGB(list){gbItems=Array.isArray(list)?list.slice(-50).filter(function(it){return it&&typeof it.text==="string"}).map(function(it){return {id:String(it.id),name:clean(it.name,16)||"손님",text:clean(it.text,200),at:+it.at||0,owner:!!it.owner}}):[];renderGB()}
 
+/* ---------- chat (max 20 chars per message) ---------- */
+var chatItems=[],ownerSay=null;
+function renderChat(){
+  var ul=$("chatLog");ul.textContent="";
+  if(!chatItems.length){var e=document.createElement("li");e.className="empty";e.textContent="아직 대화가 없어요. 먼저 인사해 보세요!";ul.appendChild(e);return}
+  chatItems.slice(-20).forEach(function(c){var li=document.createElement("li"),b=document.createElement("b"),t=document.createElement("span");
+    if(c.owner)li.className="own";if(c.me)li.className+=" me";b.textContent=c.name+(c.owner?" (주인)":"")+":";t.textContent=c.text;li.appendChild(b);li.appendChild(t);ul.appendChild(li)});
+  ul.scrollTop=ul.scrollHeight;
+}
+function onChat(m,isMe,quiet){
+  if(!m||typeof m.text!=="string")return;
+  var c={name:clean(m.name,16)||"손님",text:clean(m.text,20),owner:!!m.owner,me:!!isMe,at:+m.at||Date.now()};if(!c.text)return;
+  chatItems.push(c);if(chatItems.length>30)chatItems.shift();
+  if(quiet)return;renderChat();
+  if(Date.now()-c.at>15000)return;
+  var until=Date.now()+6000;
+  if(c.owner){ownerSay={text:c.text,until:until};renderStatus();return}
+  var G=isMe?self:guests[String(m.from)];
+  if(G&&G.bub){G.bub.el.textContent=c.text;G.bub.el.hidden=false;G.sayUntil=until}
+}
+$("chatForm").addEventListener("submit",function(e){e.preventDefault();if(!window.ROOM_SERVER||!room)return;var t=clean($("chatIn").value,20);if(!t)return;
+  room.send({t:"chat",text:t});$("chatIn").value="";$("chatCnt").textContent="0/20"});
+$("chatIn").addEventListener("input",function(){$("chatCnt").textContent=this.value.length+"/20"});
+$("chatIn").addEventListener("keydown",function(e){if(e.key==="Enter"&&e.isComposing){e.preventDefault()}});
+if(window.ROOM_SERVER){$("chatBox").hidden=false;renderChat()}
+
+/* ---------- owner name/status kept on this device ---------- */
+function savedOwner(){try{var o=JSON.parse(store("myroom.ownerStatus")||"null");return o&&typeof o==="object"?o:null}catch(e){return null}}
+function restoreOwner(){
+  if(!isOwnerUI)return;var sv=savedOwner();if(!sv)return;var p={};
+  if(!view.owner&&sv.owner)p.owner=clean(sv.owner,12);
+  if(!view.updatedAt){if(ZONES[sv.zone])p.zone=sv.zone;if(AVAIL[sv.avail])p.avail=sv.avail;if(CHARS[sv.char])p.char=sv.char;if(COLORS.indexOf(sv.color)>=0)p.color=sv.color;if(typeof sv.msg==="string")p.msg=clean(sv.msg,40)}
+  if(Object.keys(p).length){setPending(p);$("ownerName").value=pend.owner||"";$("msgIn").value=pend.msg||""}
+}
+function ownerStatusLoaded(st){if(isOwnerUI&&st&&(!st.owner||!st.updatedAt)){if(!st.owner&&view.owner){setPending({owner:view.owner})}else restoreOwner()}}
+
 /* ---------- boot ---------- */
 if(hasGL){try{initGL()}catch(e){hasGL=false;console.error(e)}}
 if(!hasGL){canvas.style.display="none";$("ui").querySelector(".dragtip").hidden=true}
@@ -855,8 +907,10 @@ function wsRoom(){
     ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
     ws.onopen=function(){backoff=1000;send({t:"id",vid:VID});send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
     ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
-      if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb)}
+      if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb);chatItems=[];(Array.isArray(m.chats)?m.chats:[]).forEach(function(x){onChat(x,false,true)});renderChat();ownerStatusLoaded(m.status)}
       else if(m.t==="gb")onGB(m.list);
+      else if(m.t==="chat")onChat(m,m.from===myId,false);
+      else if(m.t==="chat_err")toast("조금 천천히 보내 주세요.");
       else if(m.t==="gb_err")toast(m.msg==="slow"?"조금 있다가 다시 남겨 주세요.":"방명록에 남기지 못했어요.");
       else if(m.t==="peers"&&Array.isArray(m.peers)){var ps=m.peers.map(function(p){return {peer:String(p.id),kind:"viewer",sameTab:p.id===myId,isMe:p.id===myId,presence:p.presence||{}}});handlers.forEach(function(h){h({peers:ps})})}
       else if(m.t==="status")applyStatus(m.status);
@@ -873,7 +927,7 @@ function wsRoom(){
     onPeers:function(h){handlers.push(h);return function(){}}};
 }
 function onAuth(ok){
-  if(ok){var first=!isOwnerUI;if(first)enableOwner();$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;$("ownerBtn").hidden=true;
+  if(ok){var first=!isOwnerUI;if(first){enableOwner();restoreOwner()}$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;$("ownerBtn").hidden=true;
     if(self){dropWalker(self);self=null;if(destRing)destRing.visible=false}room.presence({name:view.owner||"방 주인",color:view.color});renderPeople();
     if(first)toast("방 주인으로 들어왔어요. '내 상태 바꾸기'를 누르면 설정 창이 열려요.")}
   else{store("myroom.ownerKey","");$("ownerBtn").hidden=false;toast("주인 키가 맞지 않아요. 다시 입력해 주세요.");askKey()}
