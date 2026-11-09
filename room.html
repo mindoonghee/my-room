@@ -678,6 +678,26 @@ document.addEventListener("focusout",function(){setTimeout(function(){if(!typing
 if(window.visualViewport)window.visualViewport.addEventListener("resize",function(){if(!typing())refit()});
 
 /* ---------- main canvas: sky, snow, ground, house ---------- */
+/* shooting stars: at night, 2-3 meteors fall once every hour on the hour (?meteor = preview every 8s) */
+var METEORS=[],meteorHour=-1,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
+function spawnMeteors(){var n=2+(Math.random()<0.5?1:0),now=performance.now();
+  for(var i=0;i<n;i++)METEORS.push({t0:now+i*(700+Math.random()*600),x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}
+function checkMeteors(){
+  var now=performance.now();
+  if(meteorPreview){if(night>0.3&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
+  var d=new Date();if(night>0.3&&d.getMinutes()===0&&d.getHours()!==meteorHour){meteorHour=d.getHours();spawnMeteors()}
+}
+function drawMeteors(W,b,skyH){
+  if(reduced||!METEORS.length)return;var now=performance.now(),keep=[];
+  METEORS.forEach(function(m){var k=(now-m.t0)/m.dur;if(k<0){keep.push(m);return}if(k>1)return;keep.push(m);
+    var sr=cardRect(document.querySelector(".status")),ymin=(sr&&window.innerWidth<=720?sr.bottom+8:12)*px.dpr,ymax=Math.max(ymin+40,px.oy*px.dpr+20*b);
+    var dist=m.len*W,hx=m.x*W+Math.cos(m.ang)*dist*k,hy=ymin+m.y*(ymax-ymin)+Math.sin(m.ang)*dist*k,fade=k<0.15?k/0.15:k>0.75?(1-k)/0.25:1;
+    var dx=-Math.cos(m.ang),dy=-Math.sin(m.ang),tail=Math.round(30+14*fade);
+    for(var j=tail;j>=0;j--){var a=fade*(1-j/tail);if(a<=0.02)continue;ctx.fillStyle=j<2?"rgba(255,255,255,"+a.toFixed(2)+")":j<6?"rgba(255,246,200,"+(a*0.9).toFixed(2)+")":"rgba(190,210,255,"+(a*0.7).toFixed(2)+")";
+      var tx=Math.round((hx+dx*j*b)/b)*b,ty=Math.round((hy+dy*j*b)/b)*b;ctx.fillRect(tx,ty,b,b);if(j<10)ctx.fillRect(tx,ty+b,b,b)}
+    ctx.fillStyle="rgba(255,255,255,"+(fade*0.9).toFixed(2)+")";var cx=Math.round(hx/b)*b,cy=Math.round(hy/b)*b;ctx.fillRect(cx-b,cy,b,b);ctx.fillRect(cx+b,cy,b,b);ctx.fillRect(cx,cy-b,b,b);ctx.fillRect(cx,cy+b,b,b)});
+  METEORS=keep;
+}
 function initSnow(){SNOW=[];var r=seeded(21);for(var i=0;i<70;i++)SNOW.push({x:r(),y:r(),v:0.02+r()*0.035,w:r()*6.28})}
 function paint(t,dt){
   var W=canvas.width,H=canvas.height,d=px.dpr,s=px.s*d,ox=px.ox*d,oy=px.oy*d;
@@ -687,6 +707,7 @@ function paint(t,dt){
     var mx=Math.round(W-b*14),my=Math.round(b*12+oy*0.3);ctx.fillStyle="rgba(246,240,214,"+night.toFixed(2)+")";
     for(var yy=-4;yy<=4;yy++)for(var xx=-4;xx<=4;xx++){if(xx*xx+yy*yy<=16&&((xx-2)*(xx-2)+(yy+1)*(yy+1)>9))ctx.fillRect(mx+xx*b,my+yy*b,b,b)}}
   else{var ux=Math.round(W*0.85),uy=Math.round(b*14);ctx.fillStyle="rgba(255,240,190,"+dayAmt.toFixed(2)+")";for(var y2=-3;y2<=3;y2++)for(var x2=-3;x2<=3;x2++){if(x2*x2+y2*y2<=10)ctx.fillRect(ux+x2*b,uy+y2*b,b,b)}}
+  drawMeteors(W,b,oy+GROUND*s);
   ctx.fillStyle="rgba(255,255,255,"+(0.55+0.3*dayAmt).toFixed(2)+")";
   SNOW.forEach(function(f){if(!reduced){f.y+=f.v*dt;f.w+=dt;if(f.y>1)f.y-=1}var sx=Math.round((f.x*W+Math.sin(f.w)*b*3));ctx.fillRect(sx,Math.round(f.y*H),b,b)});
   var gy=Math.round(oy+GROUND*s);ctx.fillStyle=lerpHex("#e6ebf3","#7d86a8",night*0.75);ctx.fillRect(0,gy,W,H-gy);ctx.fillStyle="#cfd7e4";ctx.fillRect(0,gy,W,b);
@@ -717,7 +738,7 @@ function frame(t,dt){
   drawZoneMarks(t);
 }function loop(ms){
   var t=ms/1000,dt=Math.min(0.05,Math.max(0,(ms-(lastMs||ms))/1000));lastMs=ms;
-  stepSelf(dt);if(self)animWalker(self,t,dt);for(var k in guests)animWalker(guests[k],t,dt);
+  checkMeteors();stepSelf(dt);if(self)animWalker(self,t,dt);for(var k in guests)animWalker(guests[k],t,dt);
   frame(t,dt);paint(t,dt);
   var nowMs=Date.now();for(var gk in guests){var GG=guests[gk];if(GG.bub&&!GG.bub.el.hidden&&nowMs>GG.sayUntil)GG.bub.el.hidden=true}if(self&&self.bub&&!self.bub.el.hidden&&nowMs>self.sayUntil)self.bub.el.hidden=true;
   if(ownerSay&&nowMs>ownerSay.until){ownerSay=null;renderStatus()}
