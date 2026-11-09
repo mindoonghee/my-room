@@ -444,7 +444,8 @@ function room1F(F,T){
   R("#8ec5c1",110,F,10,1);
 }
 function room2F(F,T){
-  R("#5a3a2a",28,T+14,8,7);R("#f3e2c4",29,T+15,6,5);R("#c8142b",31,T+16,2,2);
+  R("#5a3a2a",27,T+12,9,8);R("#f3e2c4",28,T+13,7,6);
+  [[".XX.XX."],["XXXXXXX"],[".XXXXX."],["..XXX.."],["...X..."]].forEach(function(row,ry){for(var rx=0;rx<7;rx++)if(row[0].charAt(rx)==="X")R("#d81f3c",28+rx,T+13+ry,1,1)});R("#ff8a9a",29,T+14,1,1);
   // living
   for(var gx=ST1+1;gx<PART;gx+=4){R("#2f6b3f",gx,T+3,3,1);R((gx>>2)%2?"#c8142b":"#e8b93c",gx+1,T+4,1,1)}
   addWin(66,T+9,18,14,"#a83a3a");
