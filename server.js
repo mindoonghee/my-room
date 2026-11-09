@@ -17,7 +17,7 @@ const GB_FILE = path.join(DATA_DIR, "guestbook.json");
 const GB_MAX = 50; // 방명록은 최근 50개까지 보관하고 보여줘요
 const GB_TTL = 24 * 60 * 60 * 1000; // 방명록 글은 24시간 동안만 남아요
 
-const ZONES = ["living", "read", "desk", "kitchen", "dining", "bed", "bath", "out"];
+const ZONES = ["living", "read", "desk", "kitchen", "dining", "bed", "bath", "clean", "out"];
 const AVAILS = ["free", "busy", "dnd"];
 const CHARS = ["m", "f", "cat", "dog", "tiger", "rabbit", "mouse", "bear", "roach"];
 
