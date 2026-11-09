@@ -32,6 +32,16 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
 .lbl.zzz{font-family:var(--display);font-size:20px;color:#8b8fd9;text-shadow:0 1px 0 rgba(255,255,255,.4);animation:zz 2.4s ease-in-out infinite}
 .lbl.sign{font-family:var(--display);font-size:15px;background:#fff6dc;color:#5a4410;border:2px solid #d9b45a;border-radius:6px;padding:4px 10px}
 .lbl.steam{font-size:16px;color:#5aa9c9}
+.lbl.mail{pointer-events:auto;cursor:pointer;font:inherit;font-family:var(--display);font-size:14px;background:#c8142b;color:#fff;border:2px solid #fff3d6;border-radius:99px;padding:3px 10px;box-shadow:0 4px 12px rgba(120,10,20,.35)}
+.lbl.mail:hover,.lbl.mail:focus-visible{background:#a80f22;outline:2px solid #ffd36b}
+#gbDlg .card{width:min(440px,100%);max-height:min(640px,calc(100vh - 32px));box-sizing:border-box}
+#gbList{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:8px;min-height:60px;flex:1 1 auto}
+#gbList li{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+#gbList li .who{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:2px}
+#gbList li .who b{color:var(--fg);font-weight:600}
+#gbList li button{font-size:12px;padding:0 6px;min-height:0;border:0;background:none;color:#c8142b;cursor:pointer}
+#gbList .empty{border:0;background:none;color:var(--muted);text-align:center}
+#gbText{font:inherit;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;box-sizing:border-box;resize:vertical;min-height:64px}
 @keyframes zz{0%,100%{opacity:.35;margin-top:0}50%{opacity:1;margin-top:-10px}}
 
 #ui{position:fixed;inset:0;pointer-events:none;display:grid;gap:12px;
@@ -108,7 +118,7 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
   <aside class="card people">
     <h2>지금 방에 있는 사람 <small id="count"></small></h2>
     <ul id="plist"></ul>
-    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button></div>
+    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
   <section class="card owner" id="ownerPanel" hidden>
@@ -142,6 +152,15 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
     <div class="row"><button type="button" id="randBtn">랜덤 이름</button><button type="submit" class="primary">들어가기</button></div>
   </form>
 </div>
+<div class="dlg" id="gbDlg" hidden>
+  <form class="card" id="gbForm">
+    <h2>방명록</h2>
+    <p class="hint" id="gbHint">빨간 우체통에 한마디 남겨 주세요. 방에 들어온 모두가 볼 수 있어요.</p>
+    <ul id="gbList" aria-live="polite"></ul>
+    <label class="field"><span id="gbAs">이름</span><textarea id="gbText" maxlength="200" rows="2" placeholder="예: 메리 크리스마스! 다음에 놀러 갈게"></textarea></label>
+    <div class="row"><button type="button" id="gbClose">닫기</button><button type="submit" class="primary" id="gbSend">남기기</button></div>
+  </form>
+</div>
 <div class="card fullbar" id="fullBar" role="status" hidden><b>방이 꽉 찼어요 (10/10명)</b><span class="hint">자리가 나면 자동으로 들어가요. 그동안 방 안은 구경할 수 있어요.</span></div>
 <div id="toast" role="status"></div></template>
 <div id="app"></div>
@@ -161,12 +180,13 @@ var ZONES={
   living:{label:"거실 소파",act:"소파에서 TV 보는 중",pos:[-3.55,0,2.5],rot:-Math.PI/2,pose:"sit",seat:0.5,hit:[-4.4,2.5]},
   desk:{label:"컴퓨터 방",act:"컴퓨터 하는 중",pos:[4,0,-3.66],rot:Math.PI,pose:"sit",seat:0.54,hit:[4,-3.9]},
   kitchen:{label:"주방",act:"주방에서 요리하는 중",pos:[-4.2,0,-3.75],rot:Math.PI,pose:"stand",hit:[-4.2,-3.8]},
-  dining:{label:"식탁",act:"식탁에서 밥 먹는 중",pos:[-2.65,0,-2.62],rot:0,pose:"sit",seat:0.48,hit:[-2.2,-1.6]},
+  read:{label:"독서 의자",act:"안락의자에서 책 읽는 중",pos:[-6.12,0,-0.32],rot:1.2,pose:"sit",seat:0.5,hit:[-5.75,-0.2]},
+  dining:{label:"식탁",act:"식탁에서 밥 먹는 중",pos:[-2.2,0,-2.6],rot:0,pose:"sit",seat:0.48,hit:[-2.2,-1.6]},
   bed:{label:"침대",act:"침대에서 쉬는 중",pos:[4.5,0.86,2.4],rot:0,pose:"lie",hit:[4.5,1.8]},
   bath:{label:"욕실",act:"욕조에서 목욕하는 중",pos:[7.95,0,-4.45],rot:Math.PI/2,pose:"sit",seat:0.24,hit:[8.6,-4.2]},
   out:{label:"외출",act:"외출 중",hit:[0.2,4.5]}
 };
-var ZONE_ORDER=["living","desk","kitchen","dining","bed","bath","out"];
+var ZONE_ORDER=["living","read","desk","kitchen","dining","bed","bath","out"];
 var AVAIL={free:"연락 OK",busy:"바빠요",dnd:"방해 금지"};
 var COLORS=["#4f7cf0","#e5604f","#2f9e72","#e3a21a","#9a5fd6","#e0679b"];
 var ADJ=["졸린","배고픈","신난","수줍은","용감한","느긋한","반짝이는","말랑한","씩씩한","멍때리는","행복한","궁금한"];
@@ -298,6 +318,7 @@ function poseOwner(t){
   else if(view.zone==="desk"){P.armL.rotation.x=-1.25+Math.sin(t*15)*0.07*m;P.armR.rotation.x=-1.25+Math.sin(t*15+1.7)*0.07*m;P.armL.rotation.z=0.12;P.armR.rotation.z=-0.12;P.head.rotation.x=0.08+Math.sin(t*1.3)*0.03*m}
   else if(view.zone==="kitchen"){P.armR.rotation.x=-1.0+Math.sin(t*4)*0.18*m;P.armR.rotation.z=-0.2+Math.cos(t*4)*0.15*m;P.armL.rotation.x=-0.7;P.head.rotation.x=0.3;P.hips.rotation.y=Math.sin(t*1.1)*0.06*m}
   else if(view.zone==="dining"){var e=(Math.sin(t*2.6)+1)/2;P.armR.rotation.x=-0.9-e*0.9*m;P.armR.rotation.z=-0.25;P.armL.rotation.x=-0.85;P.head.rotation.x=0.15-e*0.12*m}
+  else if(view.zone==="read"){var pg=reduced?0:Math.max(0,Math.sin(t*0.45)-0.93)*12;P.armL.rotation.x=-1.05;P.armR.rotation.x=-1.05-pg*0.25;P.armL.rotation.z=0.32;P.armR.rotation.z=-0.32+pg*0.2;P.head.rotation.x=0.38+Math.sin(t*0.9)*0.02*m;P.head.rotation.y=Math.sin(t*0.35)*0.06*m}
   else if(view.zone==="bed"){P.root.rotation.set(-Math.PI/2,0,0);P.root.position.y=z.pos[1]+br*2}
   else if(view.zone==="bath"){P.hips.rotation.x=-0.25;P.armL.rotation.z=-0.9;P.armR.rotation.z=0.9;P.armL.rotation.x=P.armR.rotation.x=0.3;P.head.rotation.x=-0.15;P.head.rotation.z=Math.sin(t*0.8)*0.12*m}
 }
@@ -319,7 +340,7 @@ function animWalker(G,t,dt,i){
 var SLOTS=[[0.1,4.15],[0.85,4.35],[-0.65,4.35],[1.6,4.05],[-0.3,3.55],[0.55,3.5],[1.3,3.35],[-1.1,3.75],[2.1,3.9],[-1.6,3.4]];
 /* walkable floor (x0,x1,z0,z1) and obstacles: walls and furniture */
 var BOUNDS=[[-6.8,6.85,-4.85,4.85],[6.8,10.0,-4.85,-0.2]];
-var OBST=[[0.9,1.1,-5.1,-2.0],[2.6,10.2,-0.07,0.11],[6.95,7.15,-5.1,-2.2],[-6.95,-2.0,-5.0,-4.2],[-3.1,-1.3,-2.9,-0.33],[-4.15,-2.85,1.15,3.95],[-5.4,-4.7,1.95,3.05],[-6.97,-6.47,1.4,3.6],[-6.75,-6.25,4.15,4.65],[-3.05,-2.65,4.05,4.45],[3.1,4.9,-4.9,-4.1],[3.7,4.3,-3.95,-3.35],[1.1,1.45,-4.9,-3.5],[3.45,5.55,0.1,3.05],[5.8,6.4,0.3,0.8],[-1.75,-0.85,4.57,4.93],[7.25,9.95,-4.98,-3.92],[7.15,7.68,-3.42,-2.58],[9.3,10.0,-1.85,-1.35]];
+var OBST=[[0.9,1.1,-5.1,-2.0],[2.6,10.2,-0.07,0.11],[6.95,7.15,-5.1,-2.2],[-6.95,-2.0,-5.0,-4.2],[-3.45,-0.95,-2.85,-0.35],[-6.8,-5.65,-0.95,0.3],[-6.68,-6.28,0.48,0.9],[-0.42,1.02,-0.12,1.32],[1.22,1.68,0.67,1.13],[-4.15,-2.85,1.15,3.95],[-5.4,-4.7,1.95,3.05],[-6.97,-6.47,1.4,3.6],[-6.75,-6.25,4.15,4.65],[-3.05,-2.65,4.05,4.45],[3.1,4.9,-4.9,-4.1],[3.7,4.3,-3.95,-3.35],[1.1,1.45,-4.9,-3.5],[3.45,5.55,0.1,3.05],[5.8,6.4,0.3,0.8],[-1.75,-0.85,4.57,4.93],[7.25,9.95,-4.98,-3.92],[7.15,7.68,-3.42,-2.58],[9.3,10.0,-1.85,-1.35]];
 function walkable(x,z){var R=0.22,ok=false,i;for(i=0;i<BOUNDS.length;i++){var b=BOUNDS[i];if(x>=b[0]&&x<=b[1]&&z>=b[2]&&z<=b[3]){ok=true;break}}if(!ok)return false;
   for(i=0;i<OBST.length;i++){var o=OBST[i];if(x>o[0]-R&&x<o[1]+R&&z>o[2]-R&&z<o[3]+R)return false}return true}
 var self=null,keys={},dest=null,destRing=null,lastSent=0,sentX=null,sentZ=null,admitted=true,joinedAt=Date.now(),lastMs=0,MAX=10;
@@ -406,39 +427,79 @@ function drawSky(h,day){
 function phaseName(h){return h<5?"한밤":h<7?"새벽":h<11?"아침":h<17?"낮":h<20?"저녁":"밤"}
 function applyTime(){
   var d=new Date(),h=d.getHours()+d.getMinutes()/60,day=dayAmount(h);
-  if(hasGL&&skyTex){drawSky(h,day);hemi.intensity=0.06+0.1*day;sun.intensity=0.05+0.2*day;sun.color.set("#8796c8").lerp(new THREE.Color("#fff0dc"),day)}
+  if(hasGL&&skyTex){drawSky(h,day);hemi.intensity=0.06+0.1*day;sun.intensity=0.05+0.2*day;sun.color.set("#9a8c7a").lerp(new THREE.Color("#ffe9bf"),day)}
   var el=$("clock");if(el)el.textContent="창밖은 "+phaseName(h)+" · "+d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"});
 }
 function glow(c,i){return M("#fff1d6",{emissive:c,emissiveIntensity:i})}
 function pl(c,i,d,x,y,z){var L=new THREE.PointLight(c,i,d,2);L.position.set(x,y,z);scene.add(L);return L}
 function addLamps(){
-  var metal=M("#2c2a30",{metalness:0.4,roughness:0.5}),warm="#ffad5c";
+  var metal=M("#2c2a30",{metalness:0.4,roughness:0.5}),warm="#ffbf45";
   function shade(rt,rb,h,x,y,z){var s=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,20,1,true),M("#f3e2c4",{emissive:warm,emissiveIntensity:0.9,side:THREE.DoubleSide}));s.position.set(x,y,z);scene.add(s)}
   // living floor lamp
   cyl(0.18,0.2,0.04,metal,-2.85,0,4.25);cyl(0.025,0.025,1.45,metal,-2.85,0.04,4.25);shade(0.2,0.3,0.32,-2.85,1.62,4.25);
-  pl(warm,1.3,6.5,-2.85,1.5,4.25);
+  pl(warm,1.45,6.5,-2.85,1.5,4.25);
   tvLight=pl("#8fb0ff",0,4,-6.3,1.3,2.5);
+  // reading lamp beside the armchair
+  cyl(0.15,0.17,0.04,metal,-6.48,0,0.69);cyl(0.02,0.02,1.4,metal,-6.48,0.04,0.69);shade(0.13,0.22,0.26,-6.48,1.5,0.69);
+  readLight=pl(warm,0.7,4,-6.35,1.35,0.4);
+  var amb=new THREE.AmbientLight("#ffc25a",0.06);scene.add(amb);
   // dining pendant
   cyl(0.01,0.01,0.85,metal,-2.2,2.15,-1.6);
   var pd=new THREE.Mesh(new THREE.ConeGeometry(0.32,0.28,24,1,true),M("#3a3530",{side:THREE.DoubleSide}));pd.position.set(-2.2,2.02,-1.6);scene.add(pd);
   var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.08,12,10),glow(warm,2));bulb.position.set(-2.2,1.9,-1.6);scene.add(bulb);
-  pl("#ffa955",1.5,5,-2.2,1.75,-1.6);
+  pl("#ffbb44",1.6,5,-2.2,1.75,-1.6);
   // kitchen under-cabinet strip
-  box(3.6,0.03,0.06,glow("#ffc27a",1.4),-3.95,1.92,-4.62);
-  pl("#ffc27a",0.8,3.5,-3.95,1.6,-4.3);
+  box(3.6,0.03,0.06,glow("#ffcc55",1.4),-3.95,1.92,-4.62);
+  pl("#ffcc55",0.85,3.5,-3.95,1.6,-4.3);
   // desk lamp
   cyl(0.1,0.12,0.03,metal,4.75,0.78,-4.65);cyl(0.015,0.015,0.45,metal,4.75,0.81,-4.65);
   var dh=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.16,16,1,true),M("#2c2a30",{side:THREE.DoubleSide}));dh.position.set(4.68,1.28,-4.55);dh.rotation.x=0.5;scene.add(dh);
   pl(warm,0.9,3.5,4.6,1.15,-4.45);
   pcLight=pl("#8fb0ff",0,3,4,1.1,-4.2);
   // bathroom sconce + candles
-  box(0.05,0.08,0.4,glow("#ffd29a",1.4),7.16,2.05,-3.0);
-  pl("#ffc98a",0.8,4,7.5,1.95,-3.0);
+  box(0.05,0.08,0.4,glow("#ffd36a",1.4),7.16,2.05,-3.0);
+  pl("#ffcd60",0.85,4,7.5,1.95,-3.0);
   [[9.75,-4.05],[9.55,-3.98]].forEach(function(p,i){cyl(0.04,0.04,0.1+i*0.04,M("#f4ece0"),p[0],0.62,p[1]);var f=new THREE.Mesh(new THREE.SphereGeometry(0.025,8,6),glow("#ffb347",3));f.position.set(p[0],0.76+i*0.04,p[1]);scene.add(f)});
   candleLight=pl("#ff9a40",0.5,2.5,9.65,0.9,-4.0);
   // entrance console lamp
   box(0.9,0.8,0.35,M("#6b4b35"),-1.3,0,4.75);cyl(0.06,0.09,0.25,M("#d8c7a8"),-1.05,0.8,4.75);shade(0.12,0.17,0.18,-1.05,1.14,4.75);
   pl(warm,0.7,3.5,-1.05,1.15,4.6);
+}
+var readBook,treeBulbs=[],treeLight,treeStar,readLight,bookV,mailbox,mailLbl;
+function buildTree(cx,cz){
+  var LAY=[[0.32,0.95,0.88],[0.82,0.82,0.7],[1.27,0.72,0.52],[1.68,0.62,0.33]];
+  function env(y){var r=0;LAY.forEach(function(L){if(y>=L[0]&&y<=L[0]+L[1])r=Math.max(r,L[2]*(1-(y-L[0])/L[1]))});return r}
+  // pot, trunk, skirt
+  cyl(0.26,0.22,0.3,M("#8c2f2f",{roughness:0.6}),cx,0,cz); cyl(0.28,0.28,0.04,M("#d9b45a",{metalness:0.5,roughness:0.4}),cx,0.26,cz);
+  cyl(0.07,0.08,0.3,M("#5b3b24"),cx,0.28,cz);
+  var needles=[M("#2f6b3f"),M("#2a6139"),M("#31703f"),M("#357845")];
+  LAY.forEach(function(L,i){var c=new THREE.Mesh(new THREE.ConeGeometry(L[2],L[1],22),needles[i]);c.position.set(cx,L[0]+L[1]/2,cz);c.rotation.y=i*0.7;scene.add(c)});
+  // red ribbon garland spiralling down
+  var pts=[],N=260;for(var k=0;k<=N;k++){var f=k/N,y=2.05-f*1.65,a=f*Math.PI*2*3.6,r=env(y)+0.03;pts.push(new THREE.Vector3(cx+Math.cos(a)*r,y,cz+Math.sin(a)*r))}
+  var rib=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),N*2,0.022,6,false),M("#c8142b",{roughness:0.45,emissive:"#5a0510",emissiveIntensity:0.25}));scene.add(rib);
+  var red=M("#d0182f",{roughness:0.35,metalness:0.15,emissive:"#4a0008",emissiveIntensity:0.3}),gold=M("#e8b93c",{metalness:0.6,roughness:0.3});
+  // red bow ornaments
+  function bow(x,y,z,ry,s){var g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=ry;g.scale.setScalar(s);scene.add(g);
+    [-1,1].forEach(function(sd){var lp=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.022,8,16),red);lp.position.set(sd*0.06,0.02,0);lp.scale.set(1,0.75,0.5);lp.rotation.z=sd*0.35;g.add(lp);
+      var tl=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.12,0.012),red);tl.position.set(sd*0.03,-0.07,0);tl.rotation.z=sd*0.35;g.add(tl)});
+    var kn=new THREE.Mesh(new THREE.SphereGeometry(0.03,10,8),red);kn.position.set(0,0.02,0.01);g.add(kn)}
+  var rnd=seeded(11);
+  for(var b=0;b<9;b++){var y=0.55+b*0.17,a=b*2.35+0.4,r=env(y)+0.02;bow(cx+Math.cos(a)*r,y,cz+Math.sin(a)*r,Math.PI/2-a,0.9+rnd()*0.3)}
+  // red & gold baubles
+  for(var o=0;o<16;o++){var yy=0.45+rnd()*1.45,aa=rnd()*Math.PI*2,rr=env(yy)+0.03,ball=new THREE.Mesh(new THREE.SphereGeometry(0.045+rnd()*0.02,12,10),o%3===2?gold:red);ball.position.set(cx+Math.cos(aa)*rr,yy,cz+Math.sin(aa)*rr);scene.add(ball)}
+  // twinkling fairy lights
+  var BC=["#ffd36b","#ffe9a8","#ffbf47","#fff2c8"];
+  for(var q=0;q<56;q++){var f2=q/56,y2=2.0-f2*1.6,a2=f2*Math.PI*2*5.2+1.1,r2=env(y2)+0.035,mat=new THREE.MeshStandardMaterial({color:"#fff6dc",emissive:BC[q%4],emissiveIntensity:2});
+    var bb=new THREE.Mesh(new THREE.SphereGeometry(0.022,8,6),mat);bb.position.set(cx+Math.cos(a2)*r2,y2,cz+Math.sin(a2)*r2);bb.userData.noShadow=true;scene.add(bb);treeBulbs.push({m:mat,ph:rnd()*Math.PI*2,sp:1.5+rnd()*2.5})}
+  // golden star
+  var sh=new THREE.Shape();for(var s=0;s<10;s++){var ra=s%2?0.06:0.15,an=s/10*Math.PI*2+Math.PI/2;if(s)sh.lineTo(Math.cos(an)*ra,Math.sin(an)*ra);else sh.moveTo(Math.cos(an)*ra,Math.sin(an)*ra)}
+  treeStar=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:0.04,bevelEnabled:false}),M("#ffd54a",{emissive:"#ffc21a",emissiveIntensity:1.6,metalness:0.3,roughness:0.3}));
+  treeStar.geometry.center();treeStar.position.set(cx,2.42,cz);treeStar.userData.noShadow=true;scene.add(treeStar);
+  // presents with red ribbon
+  [[0.55,0.32,0.4,"#f3ead8",0.4],[-0.5,0.4,0.3,"#2f6b4f",-0.3],[0.15,-0.62,0.28,"#e8c25a",0.9]].forEach(function(p){
+    var g=new THREE.Group();g.position.set(cx+p[0],0,cz+p[1]);g.rotation.y=p[4];scene.add(g);var s2=p[2];
+    box(s2,s2*0.8,s2,M(p[3]),0,0,0,g);box(s2+0.01,s2*0.8+0.01,0.05,red,0,0,0,g);box(0.05,s2*0.8+0.01,s2+0.01,red,0,0,0,g);bow(cx+p[0],s2*0.8+0.06,cz+p[1],p[4],0.8)});
+  treeLight=pl("#ffc04a",0.9,4.5,cx,1.3,cz+0.1);
 }
 function buildRoom(){
   var floorWood=M("#c79e74"),wall=M("#ebe3d6"),wallSide=M("#dfd5c6"),white=M("#f5f4f2"),dark=M("#3b3a46"),wood=M("#a8774f"),woodL=M("#d8b48b");
@@ -456,13 +517,42 @@ function buildRoom(){
   cyl(0.2,0.18,0.24,M("#c4c8d0",{metalness:0.4,roughness:0.4}),-4.2,0.96,-4.6);
   box(0.6,0.05,0.4,M("#a9b3bb",{metalness:0.5,roughness:0.3}),-2.7,0.92,-4.6);
   // dining
-  box(1.8,0.07,1.1,woodL,-2.2,0.72,-1.6);
-  [[-1.0,-0.45],[1.0,-0.45],[-1.0,0.45],[1.0,0.45]].forEach(function(o){box(0.07,0.72,0.07,wood,-2.2+o[0]*0.8,0,-1.6+o[1]*1)});
-  [[-2.65,-2.62,1],[-1.75,-2.62,1],[-2.65,-0.58,-1],[-1.75,-0.58,-1]].forEach(function(c){
-    box(0.46,0.06,0.46,wood,c[0],0.42,c[1]);[-0.18,0.18].forEach(function(a){[-0.18,0.18].forEach(function(b){box(0.05,0.42,0.05,wood,c[0]+a,0,c[1]+b)})});
-    box(0.46,0.55,0.05,wood,c[0],0.48,c[1]-c[2]*0.21)});
-  [[-2.65,-1.9],[-1.75,-1.3]].forEach(function(p){cyl(0.18,0.18,0.02,white,p[0],0.79,p[1])});
-  cyl(0.06,0.06,0.18,M("#7fb6d6"),-2.2,0.79,-1.6);
+  // round table: top, pedestal, foot
+  var tt=new THREE.Mesh(new THREE.CylinderGeometry(0.78,0.78,0.06,40),woodL);tt.position.set(-2.2,0.75,-1.6);scene.add(tt);
+  cyl(0.07,0.09,0.66,wood,-2.2,0.06,-1.6); cyl(0.32,0.38,0.06,wood,-2.2,0,-1.6);
+  [[0,-1.0,0],[0,1.0,Math.PI],[-1.0,0,Math.PI/2],[1.0,0,-Math.PI/2]].forEach(function(c){
+    var g=new THREE.Group();g.position.set(-2.2+c[0],0,-1.6+c[1]);g.rotation.y=c[2];scene.add(g);
+    box(0.46,0.06,0.46,wood,0,0.42,0,g);[-0.18,0.18].forEach(function(a){[-0.18,0.18].forEach(function(b){box(0.05,0.42,0.05,wood,a,0,b,g)})});
+    box(0.46,0.55,0.05,wood,0,0.48,-0.21,g)});
+  [[-2.2,-2.12],[-2.2,-1.08]].forEach(function(p){cyl(0.17,0.17,0.02,white,p[0],0.78,p[1])});
+  cyl(0.06,0.06,0.18,M("#7fb6d6"),-2.2,0.78,-1.6);
+  // reading armchair by the window next to the TV
+  var ac=new THREE.Group();ac.position.set(-6.2,0,-0.32);ac.rotation.y=1.2;scene.add(ac);
+  var vel=M("#b5683f",{roughness:0.95}),velL=M("#c77a4c",{roughness:0.95});
+  box(0.86,0.36,0.84,vel,0,0.06,0,ac); box(0.66,0.12,0.7,velL,0,0.42,0.04,ac);
+  box(0.9,0.62,0.2,vel,0,0.42,-0.36,ac); box(0.7,0.3,0.1,velL,0,0.6,-0.24,ac);
+  box(0.14,0.3,0.84,vel,-0.4,0.42,0,ac); box(0.14,0.3,0.84,vel,0.4,0.42,0,ac);
+  [[-0.36,-0.34],[0.36,-0.34],[-0.36,0.34],[0.36,0.34]].forEach(function(o){cyl(0.025,0.02,0.06,M("#3a2a1e"),o[0],0,o[1],ac)});
+  box(0.42,0.04,0.3,M("#efe2c8"),0.05,0.92,-0.45,ac).rotation.x=-0.25;
+  // round side rug under the chair
+  var rr=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.95,0.02,36),M("#d8b98a"));rr.position.set(-6.0,0.01,-0.3);scene.add(rr);
+  // open book (shown while reading)
+  readBook=new THREE.Group();scene.add(readBook);
+  var pgM=M("#fbf5e6"),cvM=M("#a8323a");
+  var bl=box(0.17,0.012,0.24,cvM,-0.085,0,0,readBook);bl.rotation.z=0.18;var br2=box(0.17,0.012,0.24,cvM,0.085,0,0,readBook);br2.rotation.z=-0.18;
+  var pl1=box(0.16,0.012,0.22,pgM,-0.08,0.01,0,readBook);pl1.rotation.z=0.18;var pr1=box(0.16,0.012,0.22,pgM,0.08,0.01,0,readBook);pr1.rotation.z=-0.18;
+  readBook.visible=false;
+  buildTree(0.3,0.6);
+  // red mailbox beside the tree (click to open the guestbook)
+  mailbox=new THREE.Group();mailbox.position.set(1.45,0,0.9);mailbox.rotation.y=-0.5;scene.add(mailbox);
+  var mRed=M("#c8142b",{roughness:0.4,metalness:0.2}),mDark=M("#2b2226",{metalness:0.4,roughness:0.5});
+  cyl(0.06,0.06,0.62,mDark,0,0,0,mailbox); box(0.3,0.04,0.3,mDark,0,0,0,mailbox);
+  box(0.36,0.38,0.42,mRed,0,0.62,0,mailbox);
+  var dome=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.42,24,1,false,-Math.PI/2,Math.PI),mRed);dome.position.set(0,1.0,0);dome.rotation.set(-Math.PI/2,0,0);mailbox.add(dome);
+  box(0.2,0.025,0.02,M("#1a1214"),0,0.9,0.215,mailbox);
+  box(0.22,0.1,0.01,M("#fff3d6"),0,0.72,0.215,mailbox);
+  box(0.02,0.24,0.03,M("#e8b93c",{metalness:0.5,roughness:0.3}),0.2,0.78,-0.05,mailbox); box(0.02,0.08,0.12,M("#e8b93c",{metalness:0.5,roughness:0.3}),0.2,0.94,0.0,mailbox);
+  var env=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.1,0.01),M("#fffaf0"));env.position.set(0,0.93,0.23);env.rotation.x=-0.3;mailbox.add(env);
   // living
   box(2.6,0.02,2.8,M("#8a9bc7"),-4.8,0,2.5).receiveShadow=true;
   var sofa=M("#6f8a7f");
@@ -488,7 +578,7 @@ function buildRoom(){
   box(2.0,0.12,1.75,M("#b7a6d9"),4.5,0.66,2.12);
   box(0.6,0.55,0.5,woodL,6.1,0,0.55); cyl(0.12,0.16,0.08,dark,6.1,0.55,0.55); cyl(0.02,0.02,0.3,dark,6.1,0.63,0.55);
   lampBulb=new THREE.Mesh(new THREE.ConeGeometry(0.2,0.24,16,1,true),M("#fff3cf",{emissive:"#ffd88a",emissiveIntensity:0.8,side:THREE.DoubleSide}));lampBulb.position.set(6.1,1.03,0.55);scene.add(lampBulb);
-  lampLight=new THREE.PointLight("#ffad5c",0.9,4.5,2);lampLight.position.set(6.1,1.1,0.6);scene.add(lampLight);
+  lampLight=new THREE.PointLight("#ffbf45",0.95,4.5,2);lampLight.position.set(6.1,1.1,0.6);scene.add(lampLight);
   box(2.2,0.02,1.4,M("#e3c7a8"),4.5,0,3.7).receiveShadow=true;
   // bathroom
   var bathTile=M("#d3e6e8"),porcelain=M("#fbfbfb",{roughness:0.35});
@@ -507,7 +597,7 @@ function buildRoom(){
   box(0.5,0.02,0.04,M("#e8e8e8"),8.6,0.95,-0.1); box(0.42,0.5,0.03,M("#f0a6a0"),8.6,0.5,-0.1);
   // entrance
   box(1.4,0.03,0.8,M("#7a5a3d"),0.2,0,4.6).receiveShadow=true;
-  scene.traverse(function(o){if(o.isMesh&&o!==screenTV&&o!==screenPC){o.castShadow=true;o.receiveShadow=true}});
+  scene.traverse(function(o){if(o.isMesh&&o!==screenTV&&o!==screenPC&&!o.userData.noShadow){o.castShadow=true;o.receiveShadow=true}});
 }
 
 function addLabel(cls,target,dy){var el=document.createElement("div");el.className="lbl "+cls;$("labels").appendChild(el);var L={el:el,target:target,dy:dy||0};labels.push(L);return L}
@@ -518,11 +608,11 @@ function initGL(){
   renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
   renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
   scene=new THREE.Scene();
   camera=new THREE.PerspectiveCamera(34,1,0.1,200);
   initSky();
-  hemi=new THREE.HemisphereLight("#ffe2c4","#3a2f3a",0.15);scene.add(hemi);
+  hemi=new THREE.HemisphereLight("#ffd98a","#3d2f1c",0.15);scene.add(hemi);
   sun=new THREE.DirectionalLight("#fff4e4",0.4);sun.position.set(6,12,8);sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);var sc=sun.shadow.camera;sc.left=-12;sc.right=12;sc.top=12;sc.bottom=-12;sc.near=1;sc.far=40;sun.shadow.bias=-0.0008;scene.add(sun);
   buildRoom();addLamps();
@@ -534,6 +624,8 @@ function initGL(){
   zzzLbl=addLabel("zzz",function(v){v.set(4.1,1.6,0.5);return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.set(8.9,1.5,-4.4);return true});steamLbl.el.textContent="보글보글";
   signLbl=addLabel("sign",function(v){v.set(0.2,0.9,4.6);return true});
+  mailLbl=addLabel("mail",function(v){v.set(1.45,1.42,0.9);return true});mailLbl.el.textContent="✉ 방명록";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;
+  mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
   onResize();window.addEventListener("resize",onResize);
   bindControls();
   requestAnimationFrame(loop);
@@ -554,9 +646,11 @@ function bindControls(){
 }
 var ray,plane;
 function pick(e){
-  if(!hasGL||!(isOwnerUI||self))return;
+  if(!hasGL)return;
   ray=ray||new THREE.Raycaster();plane=plane||new THREE.Plane(new THREE.Vector3(0,1,0),0);
   var r=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
+  if(mailbox&&ray.intersectObject(mailbox,true).length){openGB();return}
+  if(!(isOwnerUI||self))return;
   var p=new THREE.Vector3();if(!ray.ray.intersectPlane(plane,p))return;
   if(!isOwnerUI){if(walkable(p.x,p.z))dest=findPath(self.x,self.z,p.x,p.z);return}
   var best=null,bd=2.6;ZONE_ORDER.forEach(function(k){var h=ZONES[k].hit,d=Math.hypot(p.x-h[0],p.z-h[1]);if(d<bd){bd=d;best=k}});
@@ -574,6 +668,12 @@ function loop(ms){
   screenPC.material.emissiveIntensity=view.zone==="desk"?0.95:0.12;
   burner.material.emissiveIntensity=view.zone==="kitchen"?0.8+flick:0;
   tvLight.intensity=view.zone==="living"?0.7+flick*2:0;pcLight.intensity=view.zone==="desk"?0.55:0;
+  var reading=view.zone==="read";readLight.intensity=reading?1.25:0.55;
+  readBook.visible=reading&&!owner.bug&&owner.root.visible;
+  if(readBook.visible){bookV=bookV||new THREE.Vector3();owner.head.getWorldPosition(bookV);var zr=ZONES.read.rot;readBook.position.set(bookV.x+Math.sin(zr)*0.3,bookV.y-0.32,bookV.z+Math.cos(zr)*0.3);readBook.rotation.set(0,zr,0);readBook.rotateX(-0.75)}
+  for(var bi=0;bi<treeBulbs.length;bi++){var B=treeBulbs[bi];B.m.emissiveIntensity=reduced?1.6:0.5+1.8*Math.pow((Math.sin(t*B.sp+B.ph)+1)/2,2)}
+  treeStar.rotation.y=reduced?0:Math.sin(t*0.6)*0.5;treeStar.material.emissiveIntensity=1.4+(reduced?0:Math.sin(t*2.2)*0.4);
+  treeLight.intensity=0.85+(reduced?0:Math.sin(t*3.1)*0.12+Math.sin(t*1.7)*0.1);
   candleLight.intensity=0.45+(reduced?0:Math.sin(t*13)*0.08+Math.sin(t*7.3)*0.06);
   var sleeping=view.zone==="bed";lampLight.intensity=sleeping?0.08:0.9;lampBulb.material.emissiveIntensity=sleeping?0.05:0.8;
   for(var k2 in zoneRings){var rg=zoneRings[k2];rg.visible=isOwnerUI;if(isOwnerUI){var sel=k2===pend.zone;rg.material.color.set(sel?"#e5604f":"#2f7d6d");rg.material.opacity=sel?0.55+0.35*Math.sin(t*4):0.45;rg.scale.setScalar(sel?1.15:1)}}
@@ -718,6 +818,35 @@ function askName(){
 }
 $("renameBtn").addEventListener("click",askName);
 
+/* ---------- guestbook (red mailbox) ---------- */
+var gbItems=[];
+function gbWho(){return isOwnerUI?(view.owner||"방 주인"):(myName||"손님")}
+function gbTime(at){var d=new Date(at),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"}):d.toLocaleDateString("ko-KR",{month:"short",day:"numeric"})}
+function renderGB(){
+  if(mailLbl)mailLbl.el.textContent="✉ 방명록"+(gbItems.length?" "+gbItems.length:"");
+  var ul=$("gbList");if($("gbDlg").hidden)return;ul.textContent="";
+  if(!gbItems.length){var e=document.createElement("li");e.className="empty";e.textContent="아직 남긴 글이 없어요. 첫 글을 남겨 보세요!";ul.appendChild(e);return}
+  gbItems.slice().reverse().forEach(function(it){var li=document.createElement("li"),w=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span"),p=document.createElement("div");
+    w.className="who";b.textContent=it.name+(it.owner&&it.name!=="방 주인"?" · 방 주인":"");s.textContent=gbTime(it.at);w.appendChild(b);w.appendChild(s);
+    if(isOwnerUI){var x=document.createElement("button");x.type="button";x.textContent="지우기";x.setAttribute("data-id",it.id);x.setAttribute("aria-label",it.name+"의 글 지우기");s.appendChild(x)}
+    p.textContent=it.text;li.appendChild(w);li.appendChild(p);ul.appendChild(li)});
+}
+function openGB(){
+  var d=$("gbDlg");d.hidden=false;var ok=!!(window.ROOM_SERVER&&room);
+  $("gbAs").textContent=gbWho()+" 이름으로 남겨요";$("gbText").disabled=!ok;$("gbSend").disabled=!ok;
+  $("gbHint").textContent=ok?"빨간 우체통에 한마디 남겨 주세요. 방에 들어온 모두가 볼 수 있어요.":"방명록은 공유 링크로 들어온 방에서 쓸 수 있어요.";
+  renderGB();if(ok)setTimeout(function(){$("gbText").focus()},50);
+}
+function closeGB(){$("gbDlg").hidden=true}
+$("gbBtn").addEventListener("click",openGB);$("gbClose").addEventListener("click",closeGB);
+$("gbDlg").addEventListener("click",function(e){if(e.target===this)closeGB()});
+$("gbDlg").addEventListener("keydown",function(e){if(e.key==="Escape")closeGB()});
+$("gbText").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();$("gbForm").requestSubmit?$("gbForm").requestSubmit():$("gbSend").click()}});
+$("gbForm").addEventListener("submit",function(e){e.preventDefault();if(!window.ROOM_SERVER||!room)return;var t=clean($("gbText").value,200);if(!t)return;
+  room.send({t:"gb_add",name:gbWho(),text:t});$("gbText").value="";var sb=$("gbSend");sb.disabled=true;setTimeout(function(){sb.disabled=false},1500)});
+$("gbList").addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button[data-id]");if(!b||!isOwnerUI||!room)return;if(confirm("이 글을 방명록에서 지울까요?"))room.send({t:"gb_del",id:b.getAttribute("data-id")})});
+function onGB(list){gbItems=Array.isArray(list)?list.filter(function(it){return it&&typeof it.text==="string"}).map(function(it){return {id:String(it.id),name:clean(it.name,16)||"손님",text:clean(it.text,200),at:+it.at||0,owner:!!it.owner}}):[];renderGB()}
+
 /* ---------- boot ---------- */
 if(hasGL){try{initGL()}catch(e){hasGL=false}}
 if(!hasGL){canvas.style.display="none";$("ui").querySelector(".dragtip").hidden=true}
@@ -730,7 +859,9 @@ function wsRoom(){
     ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
     ws.onopen=function(){backoff=1000;send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
     ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
-      if(m.t==="hello"){myId=m.id;applyStatus(m.status)}
+      if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb)}
+      else if(m.t==="gb")onGB(m.list);
+      else if(m.t==="gb_err")toast(m.msg==="slow"?"조금 있다가 다시 남겨 주세요.":"방명록에 남기지 못했어요.");
       else if(m.t==="peers"&&Array.isArray(m.peers)){var ps=m.peers.map(function(p){return {peer:String(p.id),kind:"viewer",sameTab:p.id===myId,isMe:p.id===myId,presence:p.presence||{}}});handlers.forEach(function(h){h({peers:ps})})}
       else if(m.t==="status")applyStatus(m.status);
       else if(m.t==="auth")onAuth(!!m.ok);
