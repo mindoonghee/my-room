@@ -374,6 +374,17 @@ function drawBack(){
   R("#2a1d1d",7,GROUND-20,6,1);R("#fffaf0",8,GROUND-21,4,1);R("#fff3d6",6,GROUND-17,8,2);
   R("#e8b93c",16,GROUND-21,1,6);R("#e8b93c",17,GROUND-21,2,2);
   R("#f4f6fb",6,GROUND-25,8,1);R("#f4f6fb",3,GROUND-1,16,1);
+  // little snowman next to the mailbox
+  (function(cx,by){var W="#f4f6fb",S="#cfd8e6",D="#2a2320",RD="#c8142b",TW="#6b4636";
+    R("rgba(150,165,190,0.55)",cx-4,by,9,1);
+    R(W,cx-3,by-6,7,6);R(W,cx-4,by-5,9,4);R(S,cx-3,by-1,7,1);R(S,cx+3,by-5,1,3);
+    R(W,cx-2,by-10,5,4);R(W,cx-3,by-9,7,2);R(S,cx+2,by-9,1,2);
+    R(W,cx-2,by-14,5,4);R(W,cx-1,by-15,3,1);
+    R(D,cx-2,by-16,5,1);R(D,cx-1,by-19,3,3);R(RD,cx-1,by-17,3,1);
+    R(D,cx-1,by-13,1,1);R(D,cx+1,by-13,1,1);R("#f08a2c",cx,by-12,2,1);R("#f2a0a0",cx-2,by-12,1,1);
+    R(RD,cx-2,by-11,5,1);R(RD,cx+2,by-10,1,3);R("#a80f22",cx+2,by-8,1,1);
+    R(D,cx,by-8,1,1);R(D,cx,by-5,1,1);R(D,cx,by-3,1,1);
+    R(TW,cx-5,by-9,2,1);R(TW,cx-6,by-10,1,1);R(TW,cx+4,by-9,2,1);R(TW,cx+6,by-10,1,1)})(21,249);
   // little snow bush right
   R("#2f5a3a",170,GROUND-6,6,6);R("#f4f6fb",170,GROUND-7,6,2);
 }
@@ -678,7 +689,7 @@ function loop(ms){
 }
 function onTap(e){
   var r=canvas.getBoundingClientRect(),lx=(e.clientX-r.left-px.ox)/px.s,ly=(e.clientY-r.top-px.oy)/px.s;
-  if(lx>=1&&lx<=20&&ly>=GROUND-27&&ly<=GROUND+4){openGB();return}
+  if(lx>=1&&lx<=16&&ly>=GROUND-27&&ly<=GROUND+4){openGB();return}
   var lv=-1;for(var i=0;i<3;i++){var F=FY(i);if(ly>=F-63&&ly<=F+7)lv=i}
   if(lv<0)return;
   if(isOwnerUI){if($("ownerPanel").hidden)return;for(var k in PICK){var p=PICK[k];if(p[0]===lv&&lx>=p[1]&&lx<p[2]){setPending({zone:k});return}}return}
@@ -694,7 +705,7 @@ function initGL(){
   zzzLbl=addLabel("zzz",function(v){v.x=70;v.y=FY(2)-20;return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
   signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-25;return true});
-  mailLbl=addLabel("mail",function(v){v.x=3;v.y=GROUND+3;return true});mailLbl.anchor="translate(0,0)";mailLbl.el.textContent="✉ 방명록";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;
+  mailLbl=addLabel("mail",function(v){v.x=3;v.y=GROUND+11;return true});mailLbl.anchor="translate(0,0)";mailLbl.el.textContent="✉ 방명록";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
   fitHouse();window.addEventListener("resize",refit);window.addEventListener("orientationchange",refit);
   if(window.ResizeObserver){var ro=new ResizeObserver(refit);ro.observe(document.querySelector(".status"));ro.observe(document.querySelector(".people"))}
