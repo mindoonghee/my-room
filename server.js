@@ -23,7 +23,7 @@ const CHARS = ["m", "f", "cat", "dog", "tiger", "rabbit", "mouse", "bear", "roac
 if (!OWNER_KEY) console.warn("[경고] OWNER_KEY 환경변수가 없어서 아무도 방 주인 상태를 바꿀 수 없어요.");
 
 // ---------- 방 주인 상태 저장 ----------
-let status = { owner: "", zone: "desk", msg: "", avail: "free", color: "#4f7cf0", char: "m", updatedAt: 0 };
+let status = { owner: process.env.OWNER_NAME || "", zone: "desk", msg: "", avail: "free", color: "#4f7cf0", char: "m", updatedAt: 0 };
 try { status = Object.assign(status, JSON.parse(fs.readFileSync(STATUS_FILE, "utf8"))); } catch (e) { /* 처음 실행 */ }
 function saveStatus() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(STATUS_FILE, JSON.stringify(status)); }
@@ -42,6 +42,8 @@ function saveGuestbook() {
   }, 300);
 }
 let gbLastGlobal = [];
+// ---------- 대화 (메모리에만, 최근 30개) ----------
+let chats = [];
 const BAD_CHARS = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]", "g");
 function cleanText(s, n) {
   return String(s == null ? "" : s).replace(BAD_CHARS, "").trim().slice(0, n);
@@ -124,7 +126,7 @@ wss.on("connection", (ws) => {
   const c = { id: "p" + (nextId++), presence: {}, owner: false, joinedAt: Date.now(), msgs: 0, windowStart: Date.now(), alive: true, authTries: 0 };
   c.presence.role = "guest"; c.presence.joinedAt = c.joinedAt;
   clients.set(ws, c);
-  ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook }));
+  ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook, chats }));
   broadcastPeers();
 
   ws.on("pong", () => { c.alive = true; });
@@ -151,6 +153,16 @@ wss.on("connection", (ws) => {
       c.owner = ok; c.presence.role = ok ? "owner" : "guest";
       ws.send(JSON.stringify({ t: "auth", ok }));
       broadcastPeers();
+    }
+    else if (m.t === "chat") {
+      const text = cleanText(m.text, 20); // 한 번에 최대 20자
+      if (!text) return;
+      if (c.chatAt && now - c.chatAt < 800) { ws.send(JSON.stringify({ t: "chat_err" })); return; }
+      c.chatAt = now;
+      const name = c.owner ? (status.owner || "방 주인") : (cleanText(c.presence.name, 16) || "손님");
+      const msg = { t: "chat", id: crypto.randomBytes(4).toString("hex"), from: c.id, name, owner: c.owner, text, at: now };
+      chats.push(msg); if (chats.length > 30) chats.shift();
+      broadcast(msg);
     }
     else if (m.t === "gb_add") {
       const text = cleanText(m.text, 200), name = cleanText(m.name, 16) || "손님";
