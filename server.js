@@ -14,7 +14,7 @@ const MAX_CONNECTIONS = 60; // 방 안 10명 + 대기/구경하는 사람
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const STATUS_FILE = path.join(DATA_DIR, "status.json");
 const GB_FILE = path.join(DATA_DIR, "guestbook.json");
-const GB_MAX = 100; // 방명록은 최근 100개까지 보관
+const GB_MAX = 50; // 방명록은 최근 50개까지 보관하고 보여줘요
 
 const ZONES = ["living", "read", "desk", "kitchen", "dining", "bed", "bath", "out"];
 const AVAILS = ["free", "busy", "dnd"];
