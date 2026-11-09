@@ -134,7 +134,17 @@ wss.on("connection", (ws) => {
     if (++c.msgs > 40) return; // 너무 많은 메시지는 무시
     let m; try { m = JSON.parse(String(raw)); } catch (e) { return; }
     if (!m || typeof m !== "object") return;
-    if (m.t === "presence") { applyPresence(c, m.patch); broadcastPeers(); }
+    if (m.t === "id") {
+      // 같은 기기(브라우저)에서 다시 들어오면 예전 연결을 바로 정리해서 중복으로 안 보이게 해요
+      const vid = String(m.vid || "");
+      if (!/^[a-z0-9]{8,40}$/.test(vid) || c.vid) return;
+      c.vid = vid;
+      for (const [ows, oc] of clients) {
+        if (ows !== ws && oc.vid === vid) { clients.delete(ows); try { ows.terminate(); } catch (e) {} }
+      }
+      broadcastPeers();
+    }
+    else if (m.t === "presence") { applyPresence(c, m.patch); broadcastPeers(); }
     else if (m.t === "auth") {
       if (c.authTries++ > 5) { ws.send(JSON.stringify({ t: "auth", ok: false })); return; }
       const ok = !!OWNER_KEY && sameKey(m.key, OWNER_KEY);
@@ -169,7 +179,7 @@ wss.on("connection", (ws) => {
       ws.send(JSON.stringify({ t: "saved", ok: true }));
     }
   });
-  ws.on("close", () => { clients.delete(ws); broadcastPeers(); });
+  ws.on("close", () => { if (clients.delete(ws)) broadcastPeers(); });
   ws.on("error", () => {});
 });
 
@@ -180,6 +190,6 @@ setInterval(() => {
     c.alive = false; try { ws.ping(); } catch (e) {}
   }
   broadcastPeers();
-}, 30000);
+}, 10000); // 10초마다 확인해서 창을 닫은 사람은 늦어도 20초 안에 정리
 
 server.listen(PORT, () => console.log("나만의 방 서버가 열렸어요: http://localhost:" + PORT));
