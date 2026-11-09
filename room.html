@@ -226,9 +226,10 @@ var ZONES={
   dining:{label:"식탁",act:"식탁에서 밥 먹는 중",pos:[-2.2,0,-2.6],rot:0,pose:"sit",seat:0.48,hit:[-2.2,-1.6]},
   bed:{label:"침대",act:"침대에서 쉬는 중",pos:[4.5,0.86,2.4],rot:0,pose:"lie",hit:[4.5,1.8]},
   bath:{label:"욕실",act:"욕조에서 목욕하는 중",pos:[7.95,0,-4.45],rot:Math.PI/2,pose:"sit",seat:0.24,hit:[8.6,-4.2]},
+  clean:{label:"청소 중",act:"빗자루 들고 집안 청소하는 중",hit:[0,0]},
   out:{label:"외출",act:"외출 중",hit:[0.2,4.5]}
 };
-var ZONE_ORDER=["living","read","desk","kitchen","dining","bed","bath","out"];
+var ZONE_ORDER=["living","read","desk","kitchen","dining","bed","bath","clean","out"];
 var AVAIL={free:"연락 OK",busy:"바빠요",dnd:"방해 금지"};
 var COLORS=["#4f7cf0","#e5604f","#2f9e72","#e3a21a","#9a5fd6","#e0679b"];
 var ADJ=["졸린","배고픈","신난","수줍은","용감한","느긋한","반짝이는","말랑한","씩씩한","멍때리는","행복한","궁금한"];
@@ -314,7 +315,7 @@ function drawChar(x,base,o){
   x=Math.round(x);base=Math.round(base);
   if(sit){hip=base;R(leg,x-3,base,2,2);R(leg,x+1,base,2,2);R(shoe,x-3,base+2,2,1);R(shoe,x+1,base+2,2,1)}
   else{hip=base-4;var a=0,b=0;
-    if(pose==="walk"){var s=Math.sin(o.ph||0);a=s>0.3?1:0;b=s<-0.3?1:0}
+    if(pose==="walk"||pose==="sweep"){var s=Math.sin(o.ph||0);a=s>0.3?1:0;b=s<-0.3?1:0}
     if(pose==="climb"){a=Math.sin(t*12)>0?1:0;b=1-a}
     R(leg,x-3,hip,2,4-a);R(leg,x+1,hip,2,4-b);R(shoe,x-3,base-1-a,2,1);R(shoe,x+1,base-1-b,2,1)}
   // tail
@@ -328,8 +329,13 @@ function drawChar(x,base,o){
   else if(pose==="climb"){var al=Math.sin(t*12)>0?1:0;R(shirt,x-5,hip-9+al,1,4);R(shirt,x+4,hip-8-al,1,4);R(skin,x-5,hip-10+al,1,1);R(skin,x+4,hip-9-al,1,1)}
   else if(pose==="cook"){var st=Math.round(Math.sin(t*5)*1.5);R(shirt,x-5,hip-5,1,4);R(shirt,x+4,hip-6,2,1);R(skin,x+6+st,hip-7,1,1)}
   else if(pose==="read"){R(shirt,x-5,hip-5,2,3);R(shirt,x+3,hip-5,2,3)}
+  else if(pose==="sweep"){var dd=(o.dir||1)<0?-1:1;R(shirt,dd>0?x+3:x-5,hip-6,2,3);R(shirt,dd>0?x-5:x+4,hip-5,1,3);R(skin,dd>0?x+4:x-5,hip-3,1,1)}
   else{R(shirt,x-5,hip-5,1,4);R(shirt,x+4,hip-5,1,4);R(skin,x-5,hip-1,1,1);R(skin,x+4,hip-1,1,1)}
   drawHead(x,hip-13,ch,{back:back,t:t,seed:o.seed||0,closed:o.closed});
+  if(pose==="sweep"){var d2=(o.dir||1)<0?-1:1,sw=Math.round(Math.sin(t*9)*1.5);
+    for(var k=0;k<9;k++)R("#a0723f",x+d2*(4+Math.round(k*0.55)),hip-7+k,1,1);
+    var bx0=x+d2*9+sw;R("#e3b54a",bx0-2,base-3,5,3);R("#c9962e",bx0-1,base-3,1,3);R("#c9962e",bx0+1,base-3,1,3);R("#8a5a2a",bx0-2,base-3,5,1);
+    if(Math.sin(t*9)>0.3){R("rgba(205,195,175,0.7)",bx0-d2*4,base-2,1,1);R("rgba(205,195,175,0.5)",bx0-d2*6,base-3,1,1)}}
   if(pose==="read"){var flip=((t%9)<0.35);R("#a8323a",x-4,hip-5,8,4);R("#fbf5e6",x-3,hip-5,3,3);R("#fbf5e6",x,hip-5,3,3);R("#d9cdb4",x-1,hip-5,1,3);if(flip)R("#fbf5e6",x-1,hip-7,3,2)}
 }
 function drawBug(x,base,o){
@@ -497,13 +503,25 @@ function drawFront(){
 }
 
 /* ---------- dynamic: owner, walkers, lights ---------- */
+/* cleaning: walk the whole house with a broom, 1F -> 2F -> 3F -> back down (same clock for every viewer) */
+var CLEAN_PATH=[[48,0],[158,0],[40,0],[40,1],[158,1],[40,1],[40,2],[158,2],[40,2],[40,0],[48,0]],CLEAN_SEG=null,CLEAN_TOTAL=0;
+function cleanPos(time){
+  if(!CLEAN_SEG){CLEAN_SEG=[];for(var i=1;i<CLEAN_PATH.length;i++){var a=CLEAN_PATH[i-1],b=CLEAN_PATH[i],d=a[1]!==b[1]?Math.abs(b[1]-a[1])/0.45:Math.abs(b[0]-a[0])/16;CLEAN_SEG.push({a:a,b:b,d:d+0.4});CLEAN_TOTAL+=d+0.4}}
+  var tt=time%CLEAN_TOTAL;for(var j=0;j<CLEAN_SEG.length;j++){var S=CLEAN_SEG[j];if(tt<=S.d||j===CLEAN_SEG.length-1){var k=Math.min(1,tt/(S.d-0.4||1));
+    return {x:S.a[0]+(S.b[0]-S.a[0])*k,lv:S.a[1]+(S.b[1]-S.a[1])*k,dir:S.b[0]>=S.a[0]?1:-1,climb:S.a[1]!==S.b[1]&&k<1,still:k>=1}}tt-=S.d}
+  return {x:48,lv:0,dir:1,climb:false,still:true};
+}
 function ownerHead(){
+  if(view.zone==="clean"){var cp=cleanPos(Date.now()/1000);return {x:cp.x,y:FY(cp.lv)-(view.char==="roach"?9:view.char==="rabbit"?24:19)}}
   var sp=SPOT[view.zone];if(!sp)return null;var F=FY(sp.lv);
   if(view.char==="roach")return {x:sp.x,y:(sp.pose==="lie"?F-10:sp.pose==="bath"?F-13:F+(sp.dy||0))-9};
   if(sp.pose==="lie")return {x:sp.x,y:F-19};if(sp.pose==="bath")return {x:sp.x,y:F-40};
   return {x:sp.x,y:F+(sp.dy||0)-(sp.pose==="sit"||sp.pose==="read"||sp.pose==="back"?15:19)-(view.char==="rabbit"?5:0)};
 }
 function drawOwner(t){
+  if(view.zone==="clean"){var cp=cleanPos(Date.now()/1000),cf=FY(cp.lv);
+    if(view.char==="roach"){drawBug(cp.x,cf,{color:view.color,t:t,pose:cp.still?"stand":"walk",ph:t*12,dir:cp.dir});return}
+    drawChar(cp.x,cf,{ch:view.char,color:view.color,t:t,seed:3,dir:cp.dir,pose:cp.climb?"climb":"sweep",ph:cp.still?0:t*7});return}
   var sp=SPOT[view.zone];if(!sp)return;var F=FY(sp.lv),o={ch:view.char,color:view.color,t:t,seed:3,dir:1};
   if(view.char==="roach"){var by=sp.pose==="lie"?F-10:sp.pose==="bath"?F-13:F+(sp.dy||0);o.pose=view.zone==="desk"||view.zone==="kitchen"?"walk":"stand";o.ph=t*8;drawBug(sp.x,by,o);return}
   if(sp.pose==="lie"){drawHead(sp.x,F-17,view.char,{t:t,closed:true});R("#b7a6d9",67,F-14,20,2);R("#cbbde6",67,F-14,20,1);return}
