@@ -118,11 +118,11 @@ input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10
   <aside class="card people">
     <h2>지금 방에 있는 사람 <small id="count"></small></h2>
     <ul id="plist"></ul>
-    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button></div>
+    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button><button id="ownerToggle" class="primary" type="button" hidden aria-controls="ownerPanel" aria-expanded="false">내 상태 바꾸기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
   <section class="card owner" id="ownerPanel" hidden>
-    <h3 id="ownerTitle">내 상태 바꾸기 <span class="dirty" id="dirty" hidden>아직 반영 안 됨</span></h3>
+    <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap"><h3 id="ownerTitle">내 상태 바꾸기 <span class="dirty" id="dirty" hidden>아직 반영 안 됨</span></h3><button type="button" id="ownerClose" class="link" aria-label="설정 창 닫기">닫기</button></div>
     <div class="field"><span>어디에 있나요? (방을 직접 눌러도 돼요)</span><div class="chips" id="zoneChips"></div></div>
     <div class="field"><span>연락</span><div class="chips" id="availChips"></div></div>
     <div class="two">
@@ -653,6 +653,7 @@ function pick(e){
   if(!(isOwnerUI||self))return;
   var p=new THREE.Vector3();if(!ray.ray.intersectPlane(plane,p))return;
   if(!isOwnerUI){if(walkable(p.x,p.z))dest=findPath(self.x,self.z,p.x,p.z);return}
+  if($("ownerPanel").hidden)return;
   var best=null,bd=2.6;ZONE_ORDER.forEach(function(k){var h=ZONES[k].hit,d=Math.hypot(p.x-h[0],p.z-h[1]);if(d<bd){bd=d;best=k}});
   if(best){setPending({zone:best})}
 }
@@ -676,7 +677,7 @@ function loop(ms){
   treeLight.intensity=0.85+(reduced?0:Math.sin(t*3.1)*0.12+Math.sin(t*1.7)*0.1);
   candleLight.intensity=0.45+(reduced?0:Math.sin(t*13)*0.08+Math.sin(t*7.3)*0.06);
   var sleeping=view.zone==="bed";lampLight.intensity=sleeping?0.08:0.9;lampBulb.material.emissiveIntensity=sleeping?0.05:0.8;
-  for(var k2 in zoneRings){var rg=zoneRings[k2];rg.visible=isOwnerUI;if(isOwnerUI){var sel=k2===pend.zone;rg.material.color.set(sel?"#e5604f":"#2f7d6d");rg.material.opacity=sel?0.55+0.35*Math.sin(t*4):0.45;rg.scale.setScalar(sel?1.15:1)}}
+  for(var k2 in zoneRings){var rg=zoneRings[k2];rg.visible=isOwnerUI&&!$("ownerPanel").hidden;if(isOwnerUI){var sel=k2===pend.zone;rg.material.color.set(sel?"#e5604f":"#2f7d6d");rg.material.opacity=sel?0.55+0.35*Math.sin(t*4):0.45;rg.scale.setScalar(sel?1.15:1)}}
   zzzLbl.el.hidden=!sleeping;steamLbl.el.hidden=view.zone!=="bath";signLbl.el.hidden=view.zone!=="out";
   renderer.render(scene,camera);
   var w=window.innerWidth,h=window.innerHeight;
@@ -724,9 +725,12 @@ function enableOwner(){
   $("ownerName").addEventListener("input",function(){setPending({owner:clean(this.value,12)})});
   $("msgIn").addEventListener("input",function(){setPending({msg:clean(this.value,40)})});
   $("saveBtn").addEventListener("click",save);
-  syncChips();$("ownerPanel").hidden=false;$("waveBtn").textContent="방문자에게 손 흔들기";
+  syncChips();$("ownerToggle").hidden=false;showOwnerPanel(false);$("waveBtn").textContent="방문자에게 손 흔들기";
 }
-function disableOwner(){isOwnerUI=false;$("ownerPanel").hidden=true}
+function disableOwner(){isOwnerUI=false;$("ownerPanel").hidden=true;$("ownerToggle").hidden=true}
+function showOwnerPanel(on){$("ownerPanel").hidden=!on;var b=$("ownerToggle");b.setAttribute("aria-expanded",on?"true":"false");b.textContent=on?"설정 닫기":"내 상태 바꾸기"}
+$("ownerToggle").addEventListener("click",function(){showOwnerPanel($("ownerPanel").hidden)});
+$("ownerClose").addEventListener("click",function(){showOwnerPanel(false);$("ownerToggle").focus()});
 
 function buildHTML(st){
   var SC="<"+"/script>",ST="<"+"/style>";
@@ -876,7 +880,7 @@ function wsRoom(){
 function onAuth(ok){
   if(ok){var first=!isOwnerUI;if(first)enableOwner();$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;$("ownerBtn").hidden=true;
     if(self){dropWalker(self);self=null;if(destRing)destRing.visible=false}room.presence({name:view.owner||"방 주인",color:view.color});renderPeople();
-    if(first)toast("방 주인으로 들어왔어요. 아래에서 바꾸면 바로 반영돼요.")}
+    if(first)toast("방 주인으로 들어왔어요. '내 상태 바꾸기'를 누르면 설정 창이 열려요.")}
   else{store("myroom.ownerKey","");$("ownerBtn").hidden=false;toast("주인 키가 맞지 않아요. 다시 입력해 주세요.");askKey()}
 }
 function askKey(){
