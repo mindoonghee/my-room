@@ -847,12 +847,13 @@ if(hasGL){try{initGL()}catch(e){hasGL=false;console.error(e)}}
 if(!hasGL){canvas.style.display="none";$("ui").querySelector(".dragtip").hidden=true}
 renderStatus();renderPeople();applyTime();setInterval(applyTime,60000);
 /* server mode: own WebSocket server, no sign-in needed */
+var VID=(function(){var v=store("myroom.vid");if(!/^[a-z0-9]{8,40}$/.test(v||"")){v=(Math.random().toString(36).slice(2)+Date.now().toString(36)).replace(/[^a-z0-9]/g,"").slice(0,24);store("myroom.vid",v)}return v})();
 function wsRoom(){
   var ws,myId=null,handlers=[],mine={},backoff=1000;
   function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
   function connect(){
     ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
-    ws.onopen=function(){backoff=1000;send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
+    ws.onopen=function(){backoff=1000;send({t:"id",vid:VID});send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
     ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
       if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb)}
       else if(m.t==="gb")onGB(m.list);
@@ -864,6 +865,9 @@ function wsRoom(){
     ws.onclose=function(){setTimeout(connect,backoff);backoff=Math.min(15000,backoff*2)};
   }
   connect();
+  // 창을 닫거나 다른 앱으로 넘어갈 때 연결을 바로 끊어서 유령 방문자가 남지 않게 해요
+  window.addEventListener("pagehide",function(){try{ws.onclose=null;ws.close()}catch(e){}});
+  window.addEventListener("pageshow",function(ev){if(ev.persisted&&(!ws||ws.readyState>1))connect()});
   return {send:send,
     presence:function(p){for(var k in p){if(p[k]===null)delete mine[k];else mine[k]=p[k]}send({t:"presence",patch:p});return Promise.resolve()},
     onPeers:function(h){handlers.push(h);return function(){}}};
