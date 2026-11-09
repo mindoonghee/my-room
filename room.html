@@ -1,0 +1,767 @@
+<title>나만의 방</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style id="css">
+/* Layout: full-bleed 3D apartment, floating glass cards (status top-left, people top-right, owner controls bottom) */
+:root{
+  --bg:#e7e5f0; --bg2:#d7d4e6; --panel:rgba(255,255,255,.88); --fg:#24223a; --muted:#6a6784;
+  --line:#d3d0e2; --accent:#2f7d6d; --accent-fg:#ffffff; --chip:#efedf6;
+  --free:#22995f; --busy:#c9800f; --dnd:#cf3f58;
+  --display:"Jua","Gowun Dodum",system-ui,sans-serif; --body:"Gowun Dodum",system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#16151f; --bg2:#22202f; --panel:rgba(32,30,46,.88); --fg:#ecebf6; --muted:#a3a0bd;
+  --line:#37344d; --accent:#5cc4ad; --accent-fg:#0d2621; --chip:#2b2940;
+  --free:#4cd18f; --busy:#f0ad3d; --dnd:#ff6f87; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#16151f; --bg2:#22202f; --panel:rgba(32,30,46,.88); --fg:#ecebf6; --muted:#a3a0bd;
+  --line:#37344d; --accent:#5cc4ad; --accent-fg:#0d2621; --chip:#2b2940;
+  --free:#4cd18f; --busy:#f0ad3d; --dnd:#ff6f87; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%);background-color:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#scene.drag{cursor:grabbing}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;transform:translate(-50%,-100%);white-space:nowrap;font-family:var(--body);will-change:transform}
+.lbl.main{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:6px 10px;box-shadow:0 6px 18px rgba(20,16,40,.18);text-align:center;max-width:220px;white-space:normal}
+.lbl.main b{font-family:var(--display);font-weight:400;font-size:15px;display:block}
+.lbl.main span{font-size:12px;color:var(--muted)}
+.lbl.main::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+.lbl.guest{font-size:12px;background:rgba(0,0,0,.55);color:#fff;padding:2px 8px;border-radius:99px}
+.lbl.zzz{font-family:var(--display);font-size:20px;color:#8b8fd9;text-shadow:0 1px 0 rgba(255,255,255,.4);animation:zz 2.4s ease-in-out infinite}
+.lbl.sign{font-family:var(--display);font-size:15px;background:#fff6dc;color:#5a4410;border:2px solid #d9b45a;border-radius:6px;padding:4px 10px}
+.lbl.steam{font-size:16px;color:#5aa9c9}
+@keyframes zz{0%,100%{opacity:.35;margin-top:0}50%{opacity:1;margin-top:-10px}}
+
+#ui{position:fixed;inset:0;pointer-events:none;display:grid;gap:12px;
+  grid-template-columns:minmax(0,360px) 1fr minmax(0,250px);grid-template-rows:auto 1fr auto;
+  padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(20,16,40,.14);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:14px 16px;min-width:0}
+.status{grid-column:1;grid-row:1;align-self:start;display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.status h1{margin:0;font-family:var(--display);font-weight:400;font-size:26px;line-height:1.2;text-wrap:balance}
+.status p{margin:0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:99px;background:var(--chip);color:var(--fg);font-size:12px}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+.pill.free i{background:var(--free)} .pill.busy i{background:var(--busy)} .pill.dnd i{background:var(--dnd)}
+.pill.on i{background:var(--free);box-shadow:0 0 0 3px color-mix(in srgb,var(--free) 25%,transparent)}
+.people{grid-column:3;grid-row:1;align-self:start;display:flex;flex-direction:column;gap:10px}
+.people h2{margin:0;font-family:var(--display);font-weight:400;font-size:17px;display:flex;justify-content:space-between;align-items:baseline}
+.people h2 small{font-family:var(--body);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+#plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto}
+#plist li{display:flex;align-items:center;gap:8px;font-size:14px;min-width:0}
+#plist li .dot{width:12px;height:12px;border-radius:50%;flex:none}
+#plist li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#plist li .tag{font-size:11px;color:var(--muted);flex:none}
+.hint{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--chip);color:var(--fg);padding:7px 12px;font-size:14px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-family:var(--display);font-size:16px}
+button.primary:disabled{opacity:.5;cursor:default}
+button.link{background:none;border:none;padding:0;color:var(--accent);font-size:12px;text-decoration:underline}
+.owner{grid-column:1 / span 2;grid-row:3;align-self:end;max-width:640px;display:flex;flex-direction:column;gap:12px}
+.owner h3{margin:0;font-family:var(--display);font-weight:400;font-size:18px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.owner h3 .dirty{font-family:var(--body);font-size:12px;color:var(--busy)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:6px 11px;border-radius:99px;font-size:13px}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.sw{width:28px;height:28px;border-radius:50%;padding:0;border:2px solid transparent}
+.sw[aria-pressed="true"]{border-color:var(--fg)}
+input[type=text],input[type=password]{font:inherit;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;box-sizing:border-box}
+.two{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.dragtip{grid-column:3;grid-row:3;align-self:end;justify-self:end;font-size:12px;color:var(--muted);pointer-events:none;text-align:right}
+.dlg{position:fixed;inset:0;display:grid;place-items:center;background:rgba(12,10,24,.45);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.dlg .card{width:min(380px,100%);display:flex;flex-direction:column;gap:12px;padding:20px}
+.dlg h2{margin:0;font-family:var(--display);font-weight:400;font-size:22px}
+.fullbar{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;gap:4px;text-align:center;width:min(340px,calc(100% - 32px));box-sizing:border-box}
+.fullbar b{font-family:var(--display);font-weight:400;font-size:20px}
+#toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:calc(100% - 32px)}
+#toast.show{opacity:1}
+@media (max-width:720px){
+  #ui{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto auto}
+  .status{grid-column:1;grid-row:1}
+  .status h1{font-size:21px}
+  .people{grid-column:1;grid-row:3;padding:10px 12px;gap:8px}
+  #plist{flex-direction:row;flex-wrap:wrap;max-height:none;gap:4px 12px}
+  .owner{grid-column:1;grid-row:4;max-height:44vh;overflow:auto}
+  .dragtip{display:none}
+  .two{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){.lbl.zzz{animation:none}#toast{transition:none}}
+</style>
+<template id="tpl"><canvas id="scene" aria-label="3D 방 화면. 드래그해서 돌려볼 수 있어요."></canvas>
+<div id="labels"></div>
+<div id="ui">
+  <header class="card status" aria-live="polite">
+    <div class="eyebrow" id="roomName">내 방</div>
+    <h1 id="act">불러오는 중</h1>
+    <p id="msg" hidden></p>
+    <div class="meta"><span class="pill" id="avail"><i></i><span></span></span><span class="pill on" id="online" hidden><i></i>지금 접속 중</span><span id="ago"></span><span class="pill" id="clock"></span></div>
+  </header>
+  <aside class="card people">
+    <h2>지금 방에 있는 사람 <small id="count"></small></h2>
+    <ul id="plist"></ul>
+    <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button></div>
+    <p class="hint" id="roomHint" hidden></p>
+  </aside>
+  <section class="card owner" id="ownerPanel" hidden>
+    <h3>내 상태 바꾸기 <span class="dirty" id="dirty" hidden>아직 반영 안 됨</span></h3>
+    <div class="field"><span>어디에 있나요? (방을 직접 눌러도 돼요)</span><div class="chips" id="zoneChips"></div></div>
+    <div class="field"><span>연락</span><div class="chips" id="availChips"></div></div>
+    <div class="two">
+      <label class="field"><span>내 이름</span><input type="text" id="ownerName" maxlength="12" placeholder="예: 준호"></label>
+      <label class="field"><span>한마디 (선택)</span><input type="text" id="msgIn" maxlength="40" placeholder="예: 과제 마감 중이라 답장 늦어요"></label>
+    </div>
+    <div class="field"><span>캐릭터 색</span><div class="chips" id="colorChips"></div></div>
+    <div class="row" style="align-items:center"><button class="primary" id="saveBtn" type="button" disabled>방에 반영하기</button><span class="hint">반영하면 링크로 들어온 사람들 화면이 바로 바뀌어요.</span></div>
+  </section>
+  <div class="dragtip">바닥을 누르거나 WASD·방향키로 걷기<br>드래그로 돌려보기 · 휠로 확대</div>
+</div>
+<div class="dlg" id="keyDlg" hidden>
+  <form class="card" id="keyForm">
+    <h2>방 주인 확인</h2>
+    <p class="hint">서버에 설정한 주인 키를 입력하세요. 이 기기에만 저장돼요.</p>
+    <input type="password" id="keyIn" autocomplete="current-password">
+    <div class="row"><button type="submit" class="primary">확인</button></div>
+  </form>
+</div>
+<div class="dlg" id="nameDlg" hidden>
+  <form class="card" id="nameForm">
+    <h2>어떤 이름으로 들어갈까요?</h2>
+    <p class="hint">방 주인과 다른 방문자에게 이 이름이 보여요.</p>
+    <input type="text" id="nameIn" maxlength="16" autocomplete="off">
+    <div class="field"><span>캐릭터</span><div class="chips" id="charChips"></div></div>
+    <div class="row"><button type="button" id="randBtn">랜덤 이름</button><button type="submit" class="primary">들어가기</button></div>
+  </form>
+</div>
+<div class="card fullbar" id="fullBar" role="status" hidden><b>방이 꽉 찼어요 (10/10명)</b><span class="hint">자리가 나면 자동으로 들어가요. 그동안 방 안은 구경할 수 있어요.</span></div>
+<div id="toast" role="status"></div></template>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="application/json" id="state">{"owner":"","zone":"desk","msg":"","avail":"free","color":"#4f7cf0","updatedAt":0}</script>
+<script id="main">
+(function(){
+"use strict";
+var THREE_URL="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+var FONT_URL="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap";
+var SAVED=JSON.parse(document.getElementById("state").textContent);
+var app=document.getElementById("app");
+app.appendChild(document.getElementById("tpl").content.cloneNode(true));
+var $=function(id){return document.getElementById(id)};
+
+var ZONES={
+  living:{label:"거실 소파",act:"소파에서 TV 보는 중",pos:[-3.55,0,2.5],rot:-Math.PI/2,pose:"sit",seat:0.5,hit:[-4.4,2.5]},
+  desk:{label:"컴퓨터 방",act:"컴퓨터 하는 중",pos:[4,0,-3.66],rot:Math.PI,pose:"sit",seat:0.54,hit:[4,-3.9]},
+  kitchen:{label:"주방",act:"주방에서 요리하는 중",pos:[-4.2,0,-3.75],rot:Math.PI,pose:"stand",hit:[-4.2,-3.8]},
+  dining:{label:"식탁",act:"식탁에서 밥 먹는 중",pos:[-2.65,0,-2.62],rot:0,pose:"sit",seat:0.48,hit:[-2.2,-1.6]},
+  bed:{label:"침대",act:"침대에서 쉬는 중",pos:[4.5,0.86,2.4],rot:0,pose:"lie",hit:[4.5,1.8]},
+  bath:{label:"욕실",act:"욕조에서 목욕하는 중",pos:[7.95,0,-4.45],rot:Math.PI/2,pose:"sit",seat:0.24,hit:[8.6,-4.2]},
+  out:{label:"외출",act:"외출 중",hit:[0.2,4.5]}
+};
+var ZONE_ORDER=["living","desk","kitchen","dining","bed","bath","out"];
+var AVAIL={free:"연락 OK",busy:"바빠요",dnd:"방해 금지"};
+var COLORS=["#4f7cf0","#e5604f","#2f9e72","#e3a21a","#9a5fd6","#e0679b"];
+var ADJ=["졸린","배고픈","신난","수줍은","용감한","느긋한","반짝이는","말랑한","씩씩한","멍때리는","행복한","궁금한"];
+var ANI=["판다","고양이","수달","펭귄","햄스터","강아지","여우","토끼","다람쥐","오리","코알라","부엉이"];
+function randName(){return ADJ[Math.random()*ADJ.length|0]+" "+ANI[Math.random()*ANI.length|0]}
+var BADCH=(function(){var r=[[0,31],[127,159],[8203,8207],[8232,8238],[8288,8303],[65279,65279]],s="";r.forEach(function(a){s+="\\u"+("000"+a[0].toString(16)).slice(-4)+"-\\u"+("000"+a[1].toString(16)).slice(-4)});return new RegExp("["+s+"]","g")})();
+function clean(s,n){return String(s==null?"":s).replace(BADCH,"").trim().slice(0,n)}
+function hashColor(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return COLORS[Math.abs(h)%COLORS.length]}
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){try{if(v===undefined)return sessionStorage.getItem(k);sessionStorage.setItem(k,v)}catch(e2){}}return null}
+
+var view={owner:clean(SAVED.owner,12),zone:ZONES[SAVED.zone]?SAVED.zone:"desk",msg:clean(SAVED.msg,40),avail:AVAIL[SAVED.avail]?SAVED.avail:"free",color:COLORS.indexOf(SAVED.color)>=0?SAVED.color:COLORS[0],updatedAt:+SAVED.updatedAt||0};
+var isOwnerUI=false, room=null, artifactApi=null, myName=clean(store("myroom.name"),16);
+var reduced=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- toast ---------- */
+var toastT;function toast(t){var el=$("toast");el.textContent=t;el.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show")},3200)}
+
+/* ---------- 3D ---------- */
+var hasGL=typeof THREE!=="undefined";
+var canvas=$("scene"),renderer,scene,camera,owner,labels=[],zoneRings={},screenTV,screenPC,burner,lampLight,lampBulb,guests={};
+var cam={az:0.62,pol:0.98,r:22,tx:1.3,ty:0.6,tz:0.2};
+
+function M(c,o){var p={color:c,roughness:0.85,metalness:0};if(o)for(var k in o)p[k]=o[k];return new THREE.MeshStandardMaterial(p)}
+function box(w,h,d,c,x,y,z,parent){var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==="string"?M(c):c);m.position.set(x,y+h/2,z);(parent||scene).add(m);return m}
+function cyl(rt,rb,h,c,x,y,z,parent){var m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,18),typeof c==="string"?M(c):c);m.position.set(x,y+h/2,z);(parent||scene).add(m);return m}
+
+var CHARS={m:{t:"남자"},f:{t:"여자"},cat:{t:"고양이",fur:"#f0a35a"},dog:{t:"강아지",fur:"#c99566"},tiger:{t:"호랑이",fur:"#f08a2c"},rabbit:{t:"토끼",fur:"#f3efea"},mouse:{t:"쥐",fur:"#bdb7b2"},bear:{t:"곰",fur:"#8f5f3e"},roach:{t:"바퀴벌레",fur:"#a8683c"}};
+var CHAR_KEYS=Object.keys(CHARS);
+function animalBits(sp,head,hips,FUR){
+  var dark=M("#2a2320"),pink=M("#f4a7b0"),cream=M("#fbf1e2");
+  function add(parent,geo,mat,x,y,z,rx,ry,rz,sx,sy,sz){var e=new THREE.Mesh(geo,mat);e.position.set(x,y,z);e.rotation.set(rx||0,ry||0,rz||0);if(sx)e.scale.set(sx,sy,sz);parent.add(e);return e}
+  function sph(r){return new THREE.SphereGeometry(r,14,10)}
+  function tail(mat,len,r,rx){var g=new THREE.Group();g.position.set(0,0.06,-0.24);g.rotation.x=rx;hips.add(g);add(g,new THREE.CylinderGeometry(r,r*0.8,len,10),mat,0,len/2,0);return g}
+  if(sp==="cat"||sp==="tiger"){
+    if(sp==="cat"){[-1,1].forEach(function(s){add(head,new THREE.ConeGeometry(0.1,0.18,12),FUR,s*0.14,0.22,0,0,0,-s*0.35);add(head,new THREE.ConeGeometry(0.05,0.1,10),pink,s*0.135,0.21,0.03,0,0,-s*0.35)})}
+    else{[-1,1].forEach(function(s){add(head,sph(0.08),FUR,s*0.17,0.19,0,0,0,0,1,1,0.6);add(head,new THREE.BoxGeometry(0.03,0.09,0.02),dark,s*0.08,0.18,0.18,0.5,0,s*0.3)});add(head,new THREE.BoxGeometry(0.03,0.1,0.02),dark,0,0.2,0.16,0.6,0,0)}
+    add(head,sph(0.1),cream,0,-0.08,0.18,0,0,0,1.1,0.7,0.8);add(head,sph(0.03),pink,0,-0.04,0.27);
+    [-1,1].forEach(function(s){[-0.02,0.02].forEach(function(dy){add(head,new THREE.BoxGeometry(0.16,0.008,0.008),dark,s*0.16,-0.07+dy,0.2,0,0,s*dy*6)})});
+    var tl=tail(FUR,0.55,0.04,-2.3);if(sp==="tiger"){[0.18,0.36].forEach(function(y){add(tl,new THREE.CylinderGeometry(0.045,0.045,0.04,10),dark,0,y,0)})}
+  }else if(sp==="dog"){
+    var ear=M("#8a5e3a");[-1,1].forEach(function(s){add(head,sph(0.1),ear,s*0.24,0.02,-0.02,0,0,s*0.25,0.5,1.25,0.8)});
+    add(head,sph(0.1),cream,0,-0.07,0.2,0,0,0,1,0.8,1);add(head,sph(0.04),dark,0,-0.03,0.3);
+    tail(FUR,0.28,0.04,-2.6);
+  }else if(sp==="rabbit"){
+    [-1,1].forEach(function(s){add(head,new THREE.CylinderGeometry(0.055,0.065,0.42,12),FUR,s*0.09,0.38,-0.02,0,0,-s*0.12,1,1,0.6);add(head,new THREE.BoxGeometry(0.05,0.32,0.01),pink,s*0.092,0.38,0.02,0,0,-s*0.12)});
+    add(head,sph(0.03),pink,0,-0.04,0.25);add(hips,sph(0.1),M("#ffffff"),0,0.05,-0.27);
+  }else if(sp==="mouse"){
+    [-1,1].forEach(function(s){add(head,new THREE.CylinderGeometry(0.13,0.13,0.03,20),FUR,s*0.2,0.2,-0.02,Math.PI/2,0,0);add(head,new THREE.CylinderGeometry(0.085,0.085,0.032,20),pink,s*0.2,0.2,0.0,Math.PI/2,0,0)});
+    add(head,sph(0.035),pink,0,-0.04,0.27);
+    [-1,1].forEach(function(s){add(head,new THREE.BoxGeometry(0.15,0.006,0.006),dark,s*0.14,-0.06,0.22)});
+    tail(pink,0.7,0.015,-2.2);
+  }else if(sp==="bear"){
+    [-1,1].forEach(function(s){add(head,sph(0.085),FUR,s*0.17,0.2,0,0,0,0,1,1,0.7);add(head,sph(0.045),M("#d9b08a"),s*0.17,0.2,0.04,0,0,0,1,1,0.5)});
+    add(head,sph(0.1),M("#d9b08a"),0,-0.07,0.2,0,0,0,1.1,0.8,0.9);add(head,sph(0.04),dark,0,-0.03,0.29);
+  }else if(sp==="roach"){
+    var shell=M("#6e3f22",{roughness:0.3,metalness:0.15});
+    [-1,1].forEach(function(s){var a=new THREE.Group();a.position.set(s*0.06,0.2,0.12);a.rotation.set(-0.45,0,-s*0.45);head.add(a);
+      add(a,new THREE.CylinderGeometry(0.012,0.012,0.45,6),dark,0,0.22,0);add(a,sph(0.04),M("#f7c873"),0,0.46,0)});
+    add(hips,new THREE.SphereGeometry(0.3,20,14,0,Math.PI*2,0,Math.PI/2),shell,0,0.15,-0.12,-Math.PI/2,0,0,0.95,0.55,1.15);
+    add(hips,new THREE.BoxGeometry(0.015,0.62,0.02),M("#4a2a16"),0,0.33,-0.29);
+  }
+}
+function makeBug(color,s){
+  var shell=M("#7a4526",{roughness:0.3,metalness:0.15}),fur=M("#b77748"),dark=M("#2a1d16"),BODY=M(color);
+  var root=new THREE.Group(),hips=new THREE.Group();hips.position.y=0.13;root.add(hips);
+  var body=new THREE.Mesh(new THREE.SphereGeometry(0.2,20,14),shell);body.scale.set(0.85,0.5,1.35);body.position.set(0,0.04,-0.06);hips.add(body);
+  var seam=new THREE.Mesh(new THREE.BoxGeometry(0.012,0.012,0.46),M("#4d2b17"));seam.position.set(0,0.135,-0.08);hips.add(seam);
+  var scarf=new THREE.Mesh(new THREE.TorusGeometry(0.11,0.03,8,20),BODY);scarf.position.set(0,0.06,0.2);hips.add(scarf);
+  var head=new THREE.Group();head.position.set(0,0.07,0.28);hips.add(head);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.12,18,14),fur));
+  [-1,1].forEach(function(sx){var w=new THREE.Mesh(new THREE.SphereGeometry(0.048,12,10),M("#ffffff"));w.position.set(sx*0.055,0.03,0.09);head.add(w);
+    var p=new THREE.Mesh(new THREE.SphereGeometry(0.03,10,8),dark);p.position.set(sx*0.055,0.03,0.125);head.add(p);
+    var g=new THREE.Mesh(new THREE.SphereGeometry(0.01,6,6),M("#ffffff"));g.position.set(sx*0.055+0.01,0.045,0.152);head.add(g);
+    var c=new THREE.Mesh(new THREE.SphereGeometry(0.025,8,6),M("#f4a7b0"));c.position.set(sx*0.085,-0.03,0.08);c.scale.set(1,0.6,0.5);head.add(c)});
+  var ant=[-1,1].map(function(sx){var a=new THREE.Group();a.position.set(sx*0.045,0.09,0.05);a.rotation.set(0.7,0,-sx*0.35);head.add(a);
+    var st=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.3,6),dark);st.position.y=0.15;a.add(st);
+    var tip=new THREE.Mesh(new THREE.SphereGeometry(0.028,10,8),M("#f7c873",{emissive:"#f7c873",emissiveIntensity:0.2}));tip.position.y=0.31;a.add(tip);return a});
+  var legs=[];[0.12,-0.02,-0.16].forEach(function(z,i){[-1,1].forEach(function(sx){var l=new THREE.Group();l.position.set(sx*0.13,0.0,z);hips.add(l);
+    var m=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.01,0.17,6),dark);m.position.set(sx*0.06,-0.05,0);m.rotation.z=sx*1.0;l.add(m);l.userData.i=i;l.userData.sx=sx;legs.push(l)})});
+  function dummy(){var g=new THREE.Group();g.add(new THREE.Group());return g}
+  var P={root:root,hips:hips,head:head,body:body,mat:BODY,armL:dummy(),armR:dummy(),legL:{th:dummy(),kn:dummy()},legR:{th:dummy(),kn:dummy()},s:s||1,bug:{legs:legs,ant:ant}};
+  root.scale.setScalar(P.s);root.traverse(function(o){if(o.isMesh)o.castShadow=true});
+  return P;
+}
+function makePerson(color,s,sp){
+  if(sp==="roach")return makeBug(color,s);
+  sp=CHARS[sp]?sp:"m";var C=CHARS[sp],animal=!!C.fur;
+  var SKIN=M(C.fur||"#f2cfae"),PANTS=animal?M(C.fur):M("#3a3e57"),SHOE=M(animal?"#5a4a42":"#24242e"),HAIR=M(sp==="f"?"#4a2e22":"#2e2420"),BODY=M(color);
+  var root=new THREE.Group(),hips=new THREE.Group();hips.position.y=0.84;root.add(hips);
+  var body=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.27,0.58,18),BODY);body.position.y=0.29;hips.add(body);
+  var head=new THREE.Group();head.position.y=0.84;hips.add(head);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.25,20,16),SKIN));
+  if(!animal){var hair=new THREE.Mesh(new THREE.SphereGeometry(0.265,20,12,0,Math.PI*2,0,Math.PI*0.52),HAIR);hair.rotation.x=-0.3;head.add(hair)}
+  if(sp==="f"){var back=new THREE.Mesh(new THREE.SphereGeometry(0.27,18,12,0,Math.PI*2,Math.PI*0.35,Math.PI*0.5),HAIR);back.position.set(0,-0.06,-0.04);back.scale.set(1,1.15,0.9);back.rotation.x=0.5;head.add(back);
+    var skirt=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.36,0.3,18),BODY);skirt.position.y=-0.08;hips.add(skirt)}
+  if(animal)animalBits(sp,head,hips,SKIN);
+  var er=animal?0.042:0.034;
+  [-0.09,0.09].forEach(function(x){var e=new THREE.Mesh(new THREE.SphereGeometry(er,10,8),M("#1d1d24"));e.position.set(x,0.0,0.235);head.add(e);
+    if(animal){var g=new THREE.Mesh(new THREE.SphereGeometry(0.013,6,6),M("#ffffff"));g.position.set(x+0.015,0.018,0.27);head.add(g)}});
+  [-0.15,0.15].forEach(function(x){var e=new THREE.Mesh(new THREE.SphereGeometry(0.04,8,8),M("#f2a3a0"));e.position.set(x,-0.07,0.2);e.scale.set(1,0.6,0.5);head.add(e)});
+  function arm(sx){var p=new THREE.Group();p.position.set(sx*0.29,0.5,0);var a=new THREE.Mesh(new THREE.CylinderGeometry(0.068,0.068,0.44,10),BODY);a.position.y=-0.22;p.add(a);var h=new THREE.Mesh(new THREE.SphereGeometry(0.078,10,8),SKIN);h.position.y=-0.47;p.add(h);hips.add(p);return p}
+  function leg(sx){var th=new THREE.Group();th.position.set(sx*0.12,0,0);var tm=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.42,0.19),PANTS);tm.position.y=-0.21;th.add(tm);var kn=new THREE.Group();kn.position.y=-0.42;th.add(kn);var sm=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.38,0.17),PANTS);sm.position.y=-0.19;kn.add(sm);var ft=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.28),SHOE);ft.position.set(0,-0.38,0.05);kn.add(ft);hips.add(th);return {th:th,kn:kn}}
+  var P={root:root,hips:hips,head:head,body:body,mat:BODY,armL:arm(-1),armR:arm(1),legL:leg(-1),legR:leg(1),s:s||1};
+  root.scale.setScalar(P.s);
+  root.traverse(function(o){if(o.isMesh){o.castShadow=true}});
+  return P;
+}
+function resetPose(P){P.root.rotation.set(0,0,0);P.hips.rotation.set(0,0,0);P.head.rotation.set(0,0,0);
+  [P.legL,P.legR].forEach(function(l){l.th.rotation.set(0,0,0);l.kn.rotation.set(0,0,0)});
+  P.armL.rotation.set(0,0,-0.08);P.armR.rotation.set(0,0,0.08)}
+function sit(P,seat){P.legL.th.rotation.x=P.legR.th.rotation.x=-Math.PI/2;P.legL.kn.rotation.x=P.legR.kn.rotation.x=Math.PI/2;P.root.position.y=seat+0.06-0.84*P.s}
+
+function poseOwner(t){
+  var P=owner,z=ZONES[view.zone];
+  if(view.zone==="out"){P.root.visible=false;return}
+  P.root.visible=true;resetPose(P);
+  P.root.position.set(z.pos[0],z.pos[1],z.pos[2]);P.root.rotation.y=z.rot;
+  var m=reduced?0:1, br=Math.sin(t*2)*0.012*m;
+  P.body.scale.set(1+br,1+br,1+br);
+  if(z.pose==="sit")sit(P,z.seat);
+  if(view.zone==="living"){P.head.rotation.x=0.05;P.armL.rotation.x=P.armR.rotation.x=-0.5;P.head.rotation.z=Math.sin(t*0.6)*0.05*m}
+  else if(view.zone==="desk"){P.armL.rotation.x=-1.25+Math.sin(t*15)*0.07*m;P.armR.rotation.x=-1.25+Math.sin(t*15+1.7)*0.07*m;P.armL.rotation.z=0.12;P.armR.rotation.z=-0.12;P.head.rotation.x=0.08+Math.sin(t*1.3)*0.03*m}
+  else if(view.zone==="kitchen"){P.armR.rotation.x=-1.0+Math.sin(t*4)*0.18*m;P.armR.rotation.z=-0.2+Math.cos(t*4)*0.15*m;P.armL.rotation.x=-0.7;P.head.rotation.x=0.3;P.hips.rotation.y=Math.sin(t*1.1)*0.06*m}
+  else if(view.zone==="dining"){var e=(Math.sin(t*2.6)+1)/2;P.armR.rotation.x=-0.9-e*0.9*m;P.armR.rotation.z=-0.25;P.armL.rotation.x=-0.85;P.head.rotation.x=0.15-e*0.12*m}
+  else if(view.zone==="bed"){P.root.rotation.set(-Math.PI/2,0,0);P.root.position.y=z.pos[1]+br*2}
+  else if(view.zone==="bath"){P.hips.rotation.x=-0.25;P.armL.rotation.z=-0.9;P.armR.rotation.z=0.9;P.armL.rotation.x=P.armR.rotation.x=0.3;P.head.rotation.x=-0.15;P.head.rotation.z=Math.sin(t*0.8)*0.12*m}
+}
+function angLerp(a,b,k){var d=((b-a+Math.PI*3)%(Math.PI*2))-Math.PI;return a+d*k}
+function animWalker(G,t,dt,i){
+  var P=G.p;resetPose(P);var m=reduced?0:1;
+  if(!G.local){var k=1-Math.exp(-dt*8);G.x+=(G.tx-G.x)*k;G.z+=(G.tz-G.z)*k;G.ry=angLerp(G.ry,G.tr,1-Math.exp(-dt*10))}
+  var sp=Math.hypot(G.x-G.lx,G.z-G.lz)/Math.max(dt,0.001);G.lx=G.x;G.lz=G.z;
+  P.root.position.set(G.x,0,G.z);P.root.rotation.y=G.ry;
+  if(P.bug){var mv=sp>0.3,waving=Date.now()-G.waveAt<3500;if(mv)G.ph+=dt*16;
+    P.bug.legs.forEach(function(l){var ph=G.ph+(l.userData.i%2?Math.PI:0)+(l.userData.sx>0?Math.PI:0);l.rotation.y=mv?Math.sin(ph)*0.45*m:0;l.rotation.z=mv?Math.max(0,Math.cos(ph))*0.25*l.userData.sx*m:0});
+    P.bug.ant.forEach(function(a,j){a.rotation.z=(j?-1:1)*0.35+Math.sin(t*(waving?14:2)+j)*(waving?0.35:0.08)*m});
+    P.hips.position.y=0.13+(mv?Math.abs(Math.sin(G.ph))*0.012*m:0);P.head.rotation.y=mv?0:Math.sin(t*0.7+i)*0.2*m;return}
+  if(sp>0.3){G.ph+=dt*10;var s=Math.sin(G.ph)*0.55*m;P.legL.th.rotation.x=s;P.legR.th.rotation.x=-s;P.legL.kn.rotation.x=Math.max(0,-s)*0.6;P.legR.kn.rotation.x=Math.max(0,s)*0.6;P.armL.rotation.x=-s*0.8;P.armR.rotation.x=s*0.8;P.root.position.y=Math.abs(Math.cos(G.ph))*0.04*m}
+  else P.hips.rotation.z=Math.sin(t*1.4+i)*0.04*m;
+  if(Date.now()-G.waveAt<3500){P.armR.rotation.set(0,0,2.5+Math.sin(t*12)*0.35*m);P.head.rotation.z=-0.1}
+}
+
+var SLOTS=[[0.1,4.15],[0.85,4.35],[-0.65,4.35],[1.6,4.05],[-0.3,3.55],[0.55,3.5],[1.3,3.35],[-1.1,3.75],[2.1,3.9],[-1.6,3.4]];
+/* walkable floor (x0,x1,z0,z1) and obstacles: walls and furniture */
+var BOUNDS=[[-6.8,6.85,-4.85,4.85],[6.8,10.0,-4.85,-0.2]];
+var OBST=[[0.9,1.1,-5.1,-2.0],[2.6,10.2,-0.07,0.11],[6.95,7.15,-5.1,-2.2],[-6.95,-2.0,-5.0,-4.2],[-3.1,-1.3,-2.9,-0.33],[-4.15,-2.85,1.15,3.95],[-5.4,-4.7,1.95,3.05],[-6.97,-6.47,1.4,3.6],[-6.75,-6.25,4.15,4.65],[-3.05,-2.65,4.05,4.45],[3.1,4.9,-4.9,-4.1],[3.7,4.3,-3.95,-3.35],[1.1,1.45,-4.9,-3.5],[3.45,5.55,0.1,3.05],[5.8,6.4,0.3,0.8],[-1.75,-0.85,4.57,4.93],[7.25,9.95,-4.98,-3.92],[7.15,7.68,-3.42,-2.58],[9.3,10.0,-1.85,-1.35]];
+function walkable(x,z){var R=0.22,ok=false,i;for(i=0;i<BOUNDS.length;i++){var b=BOUNDS[i];if(x>=b[0]&&x<=b[1]&&z>=b[2]&&z<=b[3]){ok=true;break}}if(!ok)return false;
+  for(i=0;i<OBST.length;i++){var o=OBST[i];if(x>o[0]-R&&x<o[1]+R&&z>o[2]-R&&z<o[3]+R)return false}return true}
+var self=null,keys={},dest=null,destRing=null,lastSent=0,sentX=null,sentZ=null,admitted=true,joinedAt=Date.now(),lastMs=0,MAX=10;
+var myChar=CHARS[store("myroom.char")]?store("myroom.char"):CHAR_KEYS[Math.random()*CHAR_KEYS.length|0];
+function makeWalker(color,local,ch){var G={p:makePerson(color,0.78,ch),char:ch,waveAt:0,x:0,z:0,lx:0,lz:0,tx:0,tz:0,ry:0,tr:0,ph:0,local:local};scene.add(G.p.root);
+  G.lbl=addLabel("guest",function(v){G.p.head.getWorldPosition(v);v.y+=0.42;return true});return G}
+function dropWalker(G){scene.remove(G.p.root);removeLabel(G.lbl)}
+function spawnSelf(){
+  if(self||!hasGL||isOwnerUI)return;
+  var s=SLOTS[Math.random()*SLOTS.length|0],x=s[0]+(Math.random()-0.5)*0.4,z=s[1]+(Math.random()-0.5)*0.3;if(!walkable(x,z)){x=s[0];z=s[1]}
+  self=makeWalker(myColor(),true,myChar);self.x=self.lx=x;self.z=self.lz=z;self.ry=Math.PI;
+  if(!destRing){destRing=new THREE.Mesh(new THREE.RingGeometry(0.16,0.24,32),new THREE.MeshBasicMaterial({color:"#ffd08a",transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false}));destRing.rotation.x=-Math.PI/2;destRing.visible=false;scene.add(destRing)}
+  sendPos(true);
+}
+function stepSelf(dt){
+  if(!self)return;
+  var fx=-Math.sin(cam.az),fz=-Math.cos(cam.az),rx=Math.cos(cam.az),rz=-Math.sin(cam.az),dx=0,dz=0;
+  if(keys.f){dx+=fx;dz+=fz}if(keys.b){dx-=fx;dz-=fz}if(keys.r){dx+=rx;dz+=rz}if(keys.l){dx-=rx;dz-=rz}
+  if(dx||dz)dest=null;
+  else if(dest){dx=dest[0][0]-self.x;dz=dest[0][1]-self.z;if(Math.hypot(dx,dz)<0.06){dest.shift();if(!dest.length)dest=null;dx=dz=0}}
+  var L=Math.hypot(dx,dz);
+  if(L>0){dx/=L;dz/=L;var st=Math.min(2.6*dt,dest?L:9),nx=self.x+dx*st,nz=self.z+dz*st;
+    if(walkable(nx,nz)){self.x=nx;self.z=nz}else if(walkable(nx,self.z))self.x=nx;else if(walkable(self.x,nz))self.z=nz;else dest=null;
+    self.ry=angLerp(self.ry,Math.atan2(dx,dz),1-Math.exp(-dt*12))}
+  if(destRing){destRing.visible=!!dest;if(dest){var last=dest[dest.length-1];destRing.position.set(last[0],0.03,last[1])}}
+  sendPos(false);
+}
+var GS=0.25,GX0=-7,GZ0=-5,GW=70,GH=41,gridOK=null;
+function clearLine(ax,az,bx,bz){var n=Math.ceil(Math.hypot(bx-ax,bz-az)/0.08);for(var k=1;k<=n;k++){var t=k/n;if(!walkable(ax+(bx-ax)*t,az+(bz-az)*t))return false}return true}
+function findPath(sx,sz,tx,tz){
+  if(clearLine(sx,sz,tx,tz))return [[tx,tz]];
+  if(!gridOK){gridOK=new Uint8Array(GW*GH);for(var j=0;j<GH;j++)for(var i=0;i<GW;i++)gridOK[j*GW+i]=walkable(GX0+i*GS,GZ0+j*GS)?1:0}
+  function snap(x,z){var ci=Math.round((x-GX0)/GS),cj=Math.round((z-GZ0)/GS);for(var r=0;r<4;r++)for(var a=-r;a<=r;a++)for(var b=-r;b<=r;b++){var i=ci+a,j=cj+b;if(i>=0&&j>=0&&i<GW&&j<GH&&gridOK[j*GW+i])return j*GW+i}return -1}
+  var s=snap(sx,sz),g=snap(tx,tz);if(s<0||g<0)return null;
+  var N=GW*GH,cost=new Float32Array(N).fill(1e9),prev=new Int32Array(N).fill(-1),done=new Uint8Array(N),open=[s];cost[s]=0;
+  function h(c){return Math.hypot((c%GW)-(g%GW),Math.floor(c/GW)-Math.floor(g/GW))}
+  while(open.length){var bi=0,bf=1e9;for(var q=0;q<open.length;q++){var f=cost[open[q]]+h(open[q]);if(f<bf){bf=f;bi=q}}
+    var c=open.splice(bi,1)[0];if(c===g)break;if(done[c])continue;done[c]=1;var ci=c%GW,cj=Math.floor(c/GW);
+    for(var dj=-1;dj<=1;dj++)for(var di=-1;di<=1;di++){if(!di&&!dj)continue;var ni=ci+di,nj=cj+dj;if(ni<0||nj<0||ni>=GW||nj>=GH)continue;var nc=nj*GW+ni;
+      if(!gridOK[nc]||done[nc])continue;if(di&&dj&&(!gridOK[cj*GW+ni]||!gridOK[nj*GW+ci]))continue;
+      var nv=cost[c]+(di&&dj?1.414:1);if(nv<cost[nc]){cost[nc]=nv;prev[nc]=c;open.push(nc)}}}
+  if(prev[g]<0&&g!==s)return null;
+  var cells=[],c2=g;while(c2>=0){cells.unshift([GX0+(c2%GW)*GS,GZ0+Math.floor(c2/GW)*GS]);if(c2===s)break;c2=prev[c2]}
+  cells.push([tx,tz]);
+  var out=[],cx=sx,cz=sz,k=0;
+  while(k<cells.length){var far=k;for(var m=cells.length-1;m>k;m--){if(clearLine(cx,cz,cells[m][0],cells[m][1])){far=m;break}}out.push(cells[far]);cx=cells[far][0];cz=cells[far][1];k=far+1}
+  return out;
+}
+function sendPos(force){
+  if(!room||!self)return;var now=Date.now();if(!force&&now-lastSent<100)return;
+  var x=Math.round(self.x*100)/100,z=Math.round(self.z*100)/100;if(!force&&x===sentX&&z===sentZ)return;
+  lastSent=now;sentX=x;sentZ=z;room.presence({x:x,z:z,ry:Math.round(self.ry*100)/100}).catch(function(){});
+}
+var KEYMAP={ArrowUp:"f",KeyW:"f",ArrowDown:"b",KeyS:"b",ArrowLeft:"l",KeyA:"l",ArrowRight:"r",KeyD:"r"};
+window.addEventListener("keydown",function(e){var tg=e.target;if(tg&&(tg.tagName==="INPUT"||tg.tagName==="TEXTAREA"))return;var k=KEYMAP[e.code];if(k&&self){keys[k]=true;e.preventDefault()}});
+window.addEventListener("keyup",function(e){var k=KEYMAP[e.code];if(k)keys[k]=false});
+window.addEventListener("blur",function(){keys={}});
+
+var tvLight,pcLight,candleLight,hemi,sun,skyCanvas,skyTex,skyMat;
+function win(x,y,z,w,h,ax){
+  var gl=new THREE.Mesh(new THREE.BoxGeometry(ax==="z"?w:0.04,h,ax==="z"?0.04:w),skyMat);gl.position.set(x,y+h/2,z);scene.add(gl);
+  var fr=M("#5a4636"),t=0.07;
+  if(ax==="z"){box(w+t*2,t,0.12,fr,x,y-t,z+0.03);box(w+t*2,t,0.12,fr,x,y+h,z+0.03);box(t,h,0.12,fr,x-w/2-t/2,y,z+0.03);box(t,h,0.12,fr,x+w/2+t/2,y,z+0.03);box(t*0.6,h,0.08,fr,x,y,z+0.03);box(w+0.3,0.05,0.22,fr,x,y-0.1,z+0.1)}
+  else{box(0.12,t,w+t*2,fr,x+0.03,y-t,z);box(0.12,t,w+t*2,fr,x+0.03,y+h,z);box(0.12,h,t,fr,x+0.03,y,z-w/2-t/2);box(0.12,h,t,fr,x+0.03,y,z+w/2+t/2);box(0.08,h,t*0.6,fr,x+0.03,y,z);box(0.22,0.05,w+0.3,fr,x+0.1,y-0.1,z)}
+}
+function seeded(s){return function(){s=(s*16807)%2147483647;return (s-1)/2147483646}}
+function lerpHex(a,b,t){var A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);function ch(sh){var p=(A>>sh)&255,q=(B>>sh)&255;return Math.round(p+(q-p)*t)}return "rgb("+ch(16)+","+ch(8)+","+ch(0)+")"}
+var SKY=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[16,"#5f9ad8","#cfe0ee"],[17.8,"#4b6aa6","#f2b07a"],[19,"#262d5e","#c46a5a"],[20.3,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
+function dayAmount(h){if(h<5||h>=20.5)return 0;if(h<7)return (h-5)/2;if(h<17.5)return 1;return Math.max(0,1-(h-17.5)/3)}
+function initSky(){skyCanvas=document.createElement("canvas");skyCanvas.width=256;skyCanvas.height=160;skyTex=new THREE.CanvasTexture(skyCanvas);skyTex.encoding=THREE.sRGBEncoding;skyMat=new THREE.MeshBasicMaterial({map:skyTex,toneMapped:false})}
+function drawSky(h,day){
+  var c=skyCanvas.getContext("2d"),W=256,H=160,i=0;while(SKY[i+1][0]<=h)i++;var a=SKY[i],b=SKY[i+1],t=(h-a[0])/(b[0]-a[0]);
+  var top=lerpHex(a[1],b[1],t),gr=c.createLinearGradient(0,0,0,H);gr.addColorStop(0,top);gr.addColorStop(1,lerpHex(a[2],b[2],t));c.fillStyle=gr;c.fillRect(0,0,W,H);
+  var night=1-Math.min(1,day*1.6),rnd=seeded(7);
+  for(var s=0;s<70;s++){var sx=rnd()*W,sy=rnd()*H*0.6,al=night*(0.4+rnd()*0.6);c.fillStyle="rgba(255,255,240,"+al.toFixed(2)+")";c.fillRect(sx,sy,1.4,1.4)}
+  if(day>0.05){var p=Math.min(1,Math.max(0,(h-6)/13)),ux=W*(0.1+0.8*p),uy=H*(0.75-Math.sin(p*Math.PI)*0.6),sg=c.createRadialGradient(ux,uy,2,ux,uy,34);sg.addColorStop(0,"rgba(255,250,225,"+day.toFixed(2)+")");sg.addColorStop(0.3,"rgba(255,226,170,"+(day*0.55).toFixed(2)+")");sg.addColorStop(1,"rgba(255,220,160,0)");c.fillStyle=sg;c.fillRect(0,0,W,H)}
+  if(night>0.3){c.fillStyle="rgba(246,240,214,"+night.toFixed(2)+")";c.beginPath();c.arc(W*0.72,H*0.25,11,0,Math.PI*2);c.fill();c.fillStyle=top;c.beginPath();c.arc(W*0.72+5,H*0.25-3,10,0,Math.PI*2);c.fill()}
+  rnd=seeded(3);var x=0;
+  while(x<W){var bw=14+rnd()*26,bh=25+rnd()*55;c.fillStyle=lerpHex("#56637d","#10131f",night);c.fillRect(x,H-bh,bw,bh);
+    for(var wy=H-bh+5;wy<H-4;wy+=7)for(var wx=x+3;wx<x+bw-3;wx+=6){var on=rnd();if(night>0.3&&on<0.35){c.fillStyle="rgba(255,196,110,"+(night*0.9).toFixed(2)+")";c.fillRect(wx,wy,3,3)}}
+    x+=bw+2}
+  skyTex.needsUpdate=true;
+}
+function phaseName(h){return h<5?"한밤":h<7?"새벽":h<11?"아침":h<17?"낮":h<20?"저녁":"밤"}
+function applyTime(){
+  var d=new Date(),h=d.getHours()+d.getMinutes()/60,day=dayAmount(h);
+  if(hasGL&&skyTex){drawSky(h,day);hemi.intensity=0.06+0.1*day;sun.intensity=0.05+0.2*day;sun.color.set("#8796c8").lerp(new THREE.Color("#fff0dc"),day)}
+  var el=$("clock");if(el)el.textContent="창밖은 "+phaseName(h)+" · "+d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"});
+}
+function glow(c,i){return M("#fff1d6",{emissive:c,emissiveIntensity:i})}
+function pl(c,i,d,x,y,z){var L=new THREE.PointLight(c,i,d,2);L.position.set(x,y,z);scene.add(L);return L}
+function addLamps(){
+  var metal=M("#2c2a30",{metalness:0.4,roughness:0.5}),warm="#ffad5c";
+  function shade(rt,rb,h,x,y,z){var s=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,20,1,true),M("#f3e2c4",{emissive:warm,emissiveIntensity:0.9,side:THREE.DoubleSide}));s.position.set(x,y,z);scene.add(s)}
+  // living floor lamp
+  cyl(0.18,0.2,0.04,metal,-2.85,0,4.25);cyl(0.025,0.025,1.45,metal,-2.85,0.04,4.25);shade(0.2,0.3,0.32,-2.85,1.62,4.25);
+  pl(warm,1.3,6.5,-2.85,1.5,4.25);
+  tvLight=pl("#8fb0ff",0,4,-6.3,1.3,2.5);
+  // dining pendant
+  cyl(0.01,0.01,0.85,metal,-2.2,2.15,-1.6);
+  var pd=new THREE.Mesh(new THREE.ConeGeometry(0.32,0.28,24,1,true),M("#3a3530",{side:THREE.DoubleSide}));pd.position.set(-2.2,2.02,-1.6);scene.add(pd);
+  var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.08,12,10),glow(warm,2));bulb.position.set(-2.2,1.9,-1.6);scene.add(bulb);
+  pl("#ffa955",1.5,5,-2.2,1.75,-1.6);
+  // kitchen under-cabinet strip
+  box(3.6,0.03,0.06,glow("#ffc27a",1.4),-3.95,1.92,-4.62);
+  pl("#ffc27a",0.8,3.5,-3.95,1.6,-4.3);
+  // desk lamp
+  cyl(0.1,0.12,0.03,metal,4.75,0.78,-4.65);cyl(0.015,0.015,0.45,metal,4.75,0.81,-4.65);
+  var dh=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.16,16,1,true),M("#2c2a30",{side:THREE.DoubleSide}));dh.position.set(4.68,1.28,-4.55);dh.rotation.x=0.5;scene.add(dh);
+  pl(warm,0.9,3.5,4.6,1.15,-4.45);
+  pcLight=pl("#8fb0ff",0,3,4,1.1,-4.2);
+  // bathroom sconce + candles
+  box(0.05,0.08,0.4,glow("#ffd29a",1.4),7.16,2.05,-3.0);
+  pl("#ffc98a",0.8,4,7.5,1.95,-3.0);
+  [[9.75,-4.05],[9.55,-3.98]].forEach(function(p,i){cyl(0.04,0.04,0.1+i*0.04,M("#f4ece0"),p[0],0.62,p[1]);var f=new THREE.Mesh(new THREE.SphereGeometry(0.025,8,6),glow("#ffb347",3));f.position.set(p[0],0.76+i*0.04,p[1]);scene.add(f)});
+  candleLight=pl("#ff9a40",0.5,2.5,9.65,0.9,-4.0);
+  // entrance console lamp
+  box(0.9,0.8,0.35,M("#6b4b35"),-1.3,0,4.75);cyl(0.06,0.09,0.25,M("#d8c7a8"),-1.05,0.8,4.75);shade(0.12,0.17,0.18,-1.05,1.14,4.75);
+  pl(warm,0.7,3.5,-1.05,1.15,4.6);
+}
+function buildRoom(){
+  var floorWood=M("#c79e74"),wall=M("#ebe3d6"),wallSide=M("#dfd5c6"),white=M("#f5f4f2"),dark=M("#3b3a46"),wood=M("#a8774f"),woodL=M("#d8b48b");
+  box(14.4,0.3,10.4,floorWood,0,-0.3,0).receiveShadow=true;
+  var tile=box(5.6,0.02,3.4,M("#e7e3db"),-4.2,0,-3.3);tile.receiveShadow=true;
+  box(14.4,3,0.2,wall,0,0,-5.1); box(0.2,3,10.4,wallSide,-7.1,0,0);
+  box(0.2,3,3.1,wallSide,1,0,-3.55);
+  box(4.4,1.1,0.18,wallSide,4.8,0,0.02);
+  win(4.0,1.4,-4.99,1.6,1.1,"z"); win(-1.7,1.3,-4.99,1.4,1.0,"z"); win(-6.99,1.2,-0.4,1.6,1.1,"x"); win(8.6,1.75,-4.99,1.1,0.6,"z");
+  // kitchen
+  box(0.95,2.05,0.8,M("#dfe7ec"),-6.45,0,-4.55); box(0.04,0.7,0.04,M("#9aa6ad"),-6.05,1.0,-4.13);
+  box(3.9,0.88,0.72,white,-3.95,0,-4.62); box(3.95,0.06,0.76,M("#58586a"),-3.95,0.88,-4.62);
+  box(3.9,0.65,0.4,white,-3.95,1.95,-4.8);
+  burner=box(0.7,0.02,0.5,M("#222",{emissive:"#ff4a1c",emissiveIntensity:0}),-4.2,0.94,-4.6);
+  cyl(0.2,0.18,0.24,M("#c4c8d0",{metalness:0.4,roughness:0.4}),-4.2,0.96,-4.6);
+  box(0.6,0.05,0.4,M("#a9b3bb",{metalness:0.5,roughness:0.3}),-2.7,0.92,-4.6);
+  // dining
+  box(1.8,0.07,1.1,woodL,-2.2,0.72,-1.6);
+  [[-1.0,-0.45],[1.0,-0.45],[-1.0,0.45],[1.0,0.45]].forEach(function(o){box(0.07,0.72,0.07,wood,-2.2+o[0]*0.8,0,-1.6+o[1]*1)});
+  [[-2.65,-2.62,1],[-1.75,-2.62,1],[-2.65,-0.58,-1],[-1.75,-0.58,-1]].forEach(function(c){
+    box(0.46,0.06,0.46,wood,c[0],0.42,c[1]);[-0.18,0.18].forEach(function(a){[-0.18,0.18].forEach(function(b){box(0.05,0.42,0.05,wood,c[0]+a,0,c[1]+b)})});
+    box(0.46,0.55,0.05,wood,c[0],0.48,c[1]-c[2]*0.21)});
+  [[-2.65,-1.9],[-1.75,-1.3]].forEach(function(p){cyl(0.18,0.18,0.02,white,p[0],0.79,p[1])});
+  cyl(0.06,0.06,0.18,M("#7fb6d6"),-2.2,0.79,-1.6);
+  // living
+  box(2.6,0.02,2.8,M("#8a9bc7"),-4.8,0,2.5).receiveShadow=true;
+  var sofa=M("#6f8a7f");
+  box(1.05,0.42,2.6,sofa,-3.6,0,2.5); box(0.9,0.1,2.4,M("#7d998d"),-3.68,0.4,2.5);
+  box(0.28,0.95,2.6,sofa,-3.0,0,2.5); box(1.05,0.65,0.25,sofa,-3.6,0,1.18); box(1.05,0.65,0.25,sofa,-3.6,0,3.82);
+  box(0.4,0.35,0.5,M("#e0c26b"),-3.25,0.5,3.4);
+  box(0.7,0.36,1.1,woodL,-5.05,0,2.5); cyl(0.07,0.06,0.13,M("#f1f1f1"),-5.1,0.36,2.3);
+  box(0.5,0.5,2.2,dark,-6.72,0,2.5);
+  box(0.08,1.0,1.8,M("#16161d"),-6.88,0.85,2.5);
+  screenTV=box(0.02,0.88,1.66,M("#000",{emissive:"#2a3a60",emissiveIntensity:0.2}),-6.83,0.91,2.5);
+  cyl(0.22,0.18,0.42,M("#c98c5b"),-6.5,0,4.4); var leaf=new THREE.Mesh(new THREE.SphereGeometry(0.45,10,8),M("#4f9a5c"));leaf.position.set(-6.5,0.95,4.4);scene.add(leaf);
+  // computer room
+  box(1.8,0.06,0.8,woodL,4,0.72,-4.5);[[-0.85,-0.35],[0.85,-0.35],[-0.85,0.35],[0.85,0.35]].forEach(function(o){box(0.06,0.72,0.06,dark,4+o[0],0,-4.5+o[1])});
+  box(0.06,0.25,0.06,dark,4,0.78,-4.75); box(0.95,0.56,0.05,M("#1b1b22"),4,0.98,-4.75);
+  screenPC=box(0.88,0.49,0.01,M("#000",{emissive:"#3b6fd6",emissiveIntensity:0.15}),4,1.015,-4.72);
+  box(0.6,0.03,0.2,M("#d6d6dc"),4,0.78,-4.3); box(0.12,0.03,0.18,M("#d6d6dc"),4.5,0.78,-4.3);
+  box(0.55,0.08,0.55,M("#30323e"),4,0.46,-3.68); cyl(0.04,0.04,0.46,dark,4,0,-3.68); box(0.55,0.62,0.08,M("#30323e"),4,0.56,-3.38);
+  box(0.3,1.9,1.4,wood,1.27,0,-4.2);
+  ["#d55","#58c","#eb4","#6a6","#a6c","#e85"].forEach(function(c,i){box(0.22,0.32,0.08,M(c),1.3,0.12+Math.floor(i/3)*0.6+0.62,-4.7+(i%3)*0.38)});
+  // bedroom
+  box(2.1,0.4,2.85,wood,4.5,0,1.6); box(1.95,0.26,2.7,white,4.5,0.4,1.65);
+  box(2.1,1.05,0.14,wood,4.5,0,0.2); box(0.85,0.14,0.42,M("#f7f0e6"),4.5,0.66,0.62);
+  box(2.0,0.12,1.75,M("#b7a6d9"),4.5,0.66,2.12);
+  box(0.6,0.55,0.5,woodL,6.1,0,0.55); cyl(0.12,0.16,0.08,dark,6.1,0.55,0.55); cyl(0.02,0.02,0.3,dark,6.1,0.63,0.55);
+  lampBulb=new THREE.Mesh(new THREE.ConeGeometry(0.2,0.24,16,1,true),M("#fff3cf",{emissive:"#ffd88a",emissiveIntensity:0.8,side:THREE.DoubleSide}));lampBulb.position.set(6.1,1.03,0.55);scene.add(lampBulb);
+  lampLight=new THREE.PointLight("#ffad5c",0.9,4.5,2);lampLight.position.set(6.1,1.1,0.6);scene.add(lampLight);
+  box(2.2,0.02,1.4,M("#e3c7a8"),4.5,0,3.7).receiveShadow=true;
+  // bathroom
+  var bathTile=M("#d3e6e8"),porcelain=M("#fbfbfb",{roughness:0.35});
+  box(3.2,0.3,5.4,bathTile,8.6,-0.3,-2.5);
+  box(3.2,3,0.2,wall,8.6,0,-5.1);
+  box(0.2,3,2.9,wallSide,7.05,0,-3.65);
+  box(3.2,1.1,0.18,wallSide,8.6,0,0.02);
+  box(2.7,0.62,1.05,porcelain,8.6,0,-4.45);
+  box(2.4,0.04,0.8,M("#7cc6e6",{transparent:true,opacity:0.72,emissive:"#4aa3cf",emissiveIntensity:0.15,roughness:0.15}),8.6,0.5,-4.45);
+  cyl(0.04,0.04,0.35,M("#c4c8d0",{metalness:0.6,roughness:0.3}),9.85,0.6,-4.45);
+  [[8.2,-4.3],[8.7,-4.6],[9.1,-4.25]].forEach(function(b){var s=new THREE.Mesh(new THREE.SphereGeometry(0.14,10,8),M("#ffffff",{roughness:0.9}));s.scale.y=0.5;s.position.set(b[0],0.55,b[1]);scene.add(s)});
+  box(0.5,0.8,0.8,porcelain,7.42,0,-3.0); box(0.54,0.05,0.84,M("#e2e6ea"),7.42,0.8,-3.0);
+  box(0.04,0.75,0.62,M("#cfe6f0",{metalness:0.6,roughness:0.1}),7.18,1.25,-3.0);
+  cyl(0.21,0.17,0.4,porcelain,9.55,0,-1.6); cyl(0.23,0.23,0.05,porcelain,9.55,0.4,-1.6); box(0.2,0.55,0.45,porcelain,9.88,0.3,-1.6);
+  box(1.0,0.02,0.6,M("#8ec5c1"),8.6,0,-3.55).receiveShadow=true;
+  box(0.5,0.02,0.04,M("#e8e8e8"),8.6,0.95,-0.1); box(0.42,0.5,0.03,M("#f0a6a0"),8.6,0.5,-0.1);
+  // entrance
+  box(1.4,0.03,0.8,M("#7a5a3d"),0.2,0,4.6).receiveShadow=true;
+  scene.traverse(function(o){if(o.isMesh&&o!==screenTV&&o!==screenPC){o.castShadow=true;o.receiveShadow=true}});
+}
+
+function addLabel(cls,target,dy){var el=document.createElement("div");el.className="lbl "+cls;$("labels").appendChild(el);var L={el:el,target:target,dy:dy||0};labels.push(L);return L}
+function removeLabel(L){var i=labels.indexOf(L);if(i>=0)labels.splice(i,1);L.el.remove()}
+
+var mainLbl,zzzLbl,steamLbl,signLbl,tmpV;
+function initGL(){
+  renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(34,1,0.1,200);
+  initSky();
+  hemi=new THREE.HemisphereLight("#ffe2c4","#3a2f3a",0.15);scene.add(hemi);
+  sun=new THREE.DirectionalLight("#fff4e4",0.4);sun.position.set(6,12,8);sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);var sc=sun.shadow.camera;sc.left=-12;sc.right=12;sc.top=12;sc.bottom=-12;sc.near=1;sc.far=40;sun.shadow.bias=-0.0008;scene.add(sun);
+  buildRoom();addLamps();
+  owner=makePerson(view.color,1);scene.add(owner.root);
+  ZONE_ORDER.forEach(function(k){var h=ZONES[k].hit;var ring=new THREE.Mesh(new THREE.RingGeometry(0.42,0.52,40),new THREE.MeshBasicMaterial({color:"#2f7d6d",transparent:true,opacity:0.7,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.set(h[0],k==="bed"?0.8:k==="bath"?0.6:k==="desk"||k==="dining"||k==="living"?0.03:0.05,h[1]);ring.visible=false;scene.add(ring);zoneRings[k]=ring});
+  tmpV=new THREE.Vector3();
+  mainLbl=addLabel("main",function(v){owner.head.getWorldPosition(v);v.y+=0.55;return v.y>-50});
+  mainLbl.el.innerHTML="<b></b><span></span>";
+  zzzLbl=addLabel("zzz",function(v){v.set(4.1,1.6,0.5);return true});zzzLbl.el.textContent="Z z z";
+  steamLbl=addLabel("zzz steam",function(v){v.set(8.9,1.5,-4.4);return true});steamLbl.el.textContent="보글보글";
+  signLbl=addLabel("sign",function(v){v.set(0.2,0.9,4.6);return true});
+  onResize();window.addEventListener("resize",onResize);
+  bindControls();
+  requestAnimationFrame(loop);
+}
+function onResize(){var w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();cam.rMin=w/h<0.8?18:12;cam.rMax=w/h<0.8?40:30;cam.r=Math.min(cam.rMax,Math.max(cam.rMin,w/h<0.8?35:w/h<1.2?28:23.5))}
+function placeCam(){var s=Math.sin(cam.pol);camera.position.set(cam.tx+cam.r*s*Math.sin(cam.az),cam.ty+cam.r*Math.cos(cam.pol),cam.tz+cam.r*s*Math.cos(cam.az));camera.lookAt(cam.tx,cam.ty,cam.tz)}
+
+function bindControls(){
+  var pts={},start=null,moved=0,pinch0=0,r0=0;
+  canvas.addEventListener("pointerdown",function(e){canvas.setPointerCapture(e.pointerId);pts[e.pointerId]={x:e.clientX,y:e.clientY};var ids=Object.keys(pts);if(ids.length===1){start={x:e.clientX,y:e.clientY,az:cam.az,pol:cam.pol};moved=0}else if(ids.length===2){var a=pts[ids[0]],b=pts[ids[1]];pinch0=Math.hypot(a.x-b.x,a.y-b.y);r0=cam.r;moved=99}canvas.classList.add("drag")});
+  canvas.addEventListener("pointermove",function(e){if(!pts[e.pointerId])return;pts[e.pointerId]={x:e.clientX,y:e.clientY};var ids=Object.keys(pts);
+    if(ids.length===2){var a=pts[ids[0]],b=pts[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch0>0)cam.r=Math.min(cam.rMax,Math.max(cam.rMin,r0*pinch0/d));return}
+    if(!start)return;var dx=e.clientX-start.x,dy=e.clientY-start.y;moved=Math.max(moved,Math.abs(dx)+Math.abs(dy));
+    cam.az=Math.min(1.55,Math.max(-0.35,start.az-dx*0.006));cam.pol=Math.min(1.25,Math.max(0.5,start.pol-dy*0.004))});
+  function up(e){var wasClick=start&&moved<6&&Object.keys(pts).length===1;delete pts[e.pointerId];if(!Object.keys(pts).length){canvas.classList.remove("drag");if(wasClick&&e.type==="pointerup")pick(e);start=null}}
+  canvas.addEventListener("pointerup",up);canvas.addEventListener("pointercancel",up);
+  canvas.addEventListener("wheel",function(e){e.preventDefault();cam.r=Math.min(cam.rMax,Math.max(cam.rMin,cam.r*(1+Math.sign(e.deltaY)*0.08)))},{passive:false});
+}
+var ray,plane;
+function pick(e){
+  if(!hasGL||!(isOwnerUI||self))return;
+  ray=ray||new THREE.Raycaster();plane=plane||new THREE.Plane(new THREE.Vector3(0,1,0),0);
+  var r=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
+  var p=new THREE.Vector3();if(!ray.ray.intersectPlane(plane,p))return;
+  if(!isOwnerUI){if(walkable(p.x,p.z))dest=findPath(self.x,self.z,p.x,p.z);return}
+  var best=null,bd=2.6;ZONE_ORDER.forEach(function(k){var h=ZONES[k].hit,d=Math.hypot(p.x-h[0],p.z-h[1]);if(d<bd){bd=d;best=k}});
+  if(best){setPending({zone:best})}
+}
+
+function loop(ms){
+  var t=ms/1000;placeCam();
+  poseOwner(t);
+  var dt=Math.min(0.05,Math.max(0,(ms-(lastMs||ms))/1000));lastMs=ms;
+  stepSelf(dt);if(self)animWalker(self,t,dt,0);
+  var gi=1;for(var k in guests){animWalker(guests[k],t,dt,gi++)}
+  var flick=reduced?0:Math.sin(t*7)*0.08+Math.sin(t*2.3)*0.06;
+  screenTV.material.emissive.set(view.zone==="living"?"#7fa8ff":"#1d2236");screenTV.material.emissiveIntensity=view.zone==="living"?0.9+flick:0.15;
+  screenPC.material.emissiveIntensity=view.zone==="desk"?0.95:0.12;
+  burner.material.emissiveIntensity=view.zone==="kitchen"?0.8+flick:0;
+  tvLight.intensity=view.zone==="living"?0.7+flick*2:0;pcLight.intensity=view.zone==="desk"?0.55:0;
+  candleLight.intensity=0.45+(reduced?0:Math.sin(t*13)*0.08+Math.sin(t*7.3)*0.06);
+  var sleeping=view.zone==="bed";lampLight.intensity=sleeping?0.08:0.9;lampBulb.material.emissiveIntensity=sleeping?0.05:0.8;
+  for(var k2 in zoneRings){var rg=zoneRings[k2];rg.visible=isOwnerUI;if(isOwnerUI){var sel=k2===pend.zone;rg.material.color.set(sel?"#e5604f":"#2f7d6d");rg.material.opacity=sel?0.55+0.35*Math.sin(t*4):0.45;rg.scale.setScalar(sel?1.15:1)}}
+  zzzLbl.el.hidden=!sleeping;steamLbl.el.hidden=view.zone!=="bath";signLbl.el.hidden=view.zone!=="out";
+  renderer.render(scene,camera);
+  var w=window.innerWidth,h=window.innerHeight;
+  labels.forEach(function(L){if(L.el.hidden)return;if(!L.target(tmpV)){L.el.style.display="none";return}tmpV.project(camera);
+    if(tmpV.z>1){L.el.style.display="none";return}L.el.style.display="";L.el.style.transform="translate("+((tmpV.x+1)/2*w).toFixed(1)+"px,"+((1-tmpV.y)/2*h).toFixed(1)+"px) translate(-50%,-100%)"});
+  requestAnimationFrame(loop);
+}
+
+/* ---------- status UI ---------- */
+var pend={};
+function ago(ts){if(!ts)return "방금 만든 방";var s=(Date.now()-ts)/1000;if(s<60)return "방금 업데이트";if(s<3600)return Math.floor(s/60)+"분 전 업데이트";if(s<86400)return Math.floor(s/3600)+"시간 전 업데이트";return Math.floor(s/86400)+"일 전 업데이트"}
+function roomTitle(n){return n?n+"의 방":"내 방"}
+function renderStatus(){
+  var z=ZONES[view.zone];
+  $("roomName").textContent=roomTitle(view.owner)+" · "+z.label;
+  $("act").textContent=(view.owner?view.owner+"님은 지금 ":"지금 ")+z.act;
+  var m=$("msg");m.hidden=!view.msg;m.textContent=view.msg?"“"+view.msg+"”":"";
+  var a=$("avail");a.className="pill "+view.avail;a.querySelector("span").textContent=AVAIL[view.avail];
+  $("ago").textContent=ago(view.updatedAt);
+  if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";mainLbl.el.querySelector("span").textContent=view.msg||z.act;mainLbl.el.hidden=view.zone==="out";
+    signLbl.el.textContent=(view.owner||"주인")+" 외출 중";owner.mat.color.set(view.color)}
+  document.title="나만의 방";
+}
+setInterval(function(){$("ago").textContent=ago(view.updatedAt)},30000);
+
+/* ---------- owner controls ---------- */
+function isDirty(){return pend.zone!==SAVED.zone||pend.msg!==clean(SAVED.msg,40)||pend.avail!==SAVED.avail||pend.owner!==clean(SAVED.owner,12)||pend.color!==SAVED.color}
+function setPending(p){for(var k in p)pend[k]=p[k];view.zone=pend.zone;view.msg=pend.msg;view.avail=pend.avail;view.owner=pend.owner;view.color=pend.color;renderStatus();syncChips();
+  var d=isDirty();$("dirty").hidden=!d;$("saveBtn").disabled=!d;if(room)room.presence({name:view.owner||"방 주인"}).catch(function(){})}
+function chipRow(id,items,key){var box=$(id);box.innerHTML="";items.forEach(function(it){var b=document.createElement("button");b.type="button";b.dataset.v=it.v;
+  if(it.color){b.className="sw";b.style.background=it.v;b.setAttribute("aria-label","색 "+it.v)}else b.textContent=it.t;
+  b.addEventListener("click",function(){var o={};o[key]=it.v;setPending(o)});box.appendChild(b)})}
+function syncChips(){[["zoneChips","zone"],["availChips","avail"],["colorChips","color"]].forEach(function(r){var bs=$(r[0]).children;for(var i=0;i<bs.length;i++)bs[i].setAttribute("aria-pressed",String(bs[i].dataset.v===pend[r[1]]))})}
+function enableOwner(){
+  isOwnerUI=true;pend={zone:view.zone,msg:view.msg,avail:view.avail,owner:view.owner,color:view.color};
+  chipRow("zoneChips",ZONE_ORDER.map(function(k){return {v:k,t:ZONES[k].label}}),"zone");
+  chipRow("availChips",Object.keys(AVAIL).map(function(k){return {v:k,t:AVAIL[k]}}),"avail");
+  chipRow("colorChips",COLORS.map(function(c){return {v:c,color:true}}),"color");
+  $("ownerName").value=view.owner;$("msgIn").value=view.msg;
+  $("ownerName").addEventListener("input",function(){setPending({owner:clean(this.value,12)})});
+  $("msgIn").addEventListener("input",function(){setPending({msg:clean(this.value,40)})});
+  $("saveBtn").addEventListener("click",save);
+  syncChips();$("ownerPanel").hidden=false;$("waveBtn").textContent="방문자에게 손 흔들기";
+}
+function disableOwner(){isOwnerUI=false;$("ownerPanel").hidden=true}
+
+function buildHTML(st){
+  var SC="<"+"/script>",ST="<"+"/style>";
+  var json=JSON.stringify(st).replace(/</g,"\\u003c");
+  return "<!doctype html><html><head><meta charset=utf8><meta name=viewport content=\"width=device-width,initial-scale=1,viewport-fit=cover\"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}"+ST+"</head><body>"
+   +"<title>나만의 방</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n"
+   +"<link rel=\"stylesheet\" href=\""+FONT_URL+"\">\n"
+   +"<style id=\"css\">"+$("css").textContent+ST+"\n"
+   +"<template id=\"tpl\">"+$("tpl").innerHTML+"<"+"/template>\n<div id=\"app\"></div>\n"
+   +"<script src=\""+THREE_URL+"\">"+SC+"\n"
+   +"<script type=\"application/json\" id=\"state\">"+json+SC+"\n"
+   +"<script id=\"main\">"+$("main").textContent+SC+"\n</body></html>";
+}
+var saving=false;
+var saveTimer;
+function applyStatus(st){
+  if(!st)return;SAVED=st;
+  var n={owner:clean(st.owner,12),zone:ZONES[st.zone]?st.zone:"desk",msg:clean(st.msg,40),avail:AVAIL[st.avail]?st.avail:"free",color:COLORS.indexOf(st.color)>=0?st.color:COLORS[0],updatedAt:+st.updatedAt||0};
+  if(isOwnerUI&&!saving&&isDirty()){view.updatedAt=n.updatedAt;renderStatus();return}
+  view=n;
+  if(isOwnerUI){pend={zone:n.zone,msg:n.msg,avail:n.avail,owner:n.owner,color:n.color};$("ownerName").value=n.owner;$("msgIn").value=n.msg;syncChips();$("dirty").hidden=true;$("saveBtn").disabled=true}
+  renderStatus();renderPeople();
+}
+function onSaved(ok){clearTimeout(saveTimer);saving=false;var b=$("saveBtn");b.textContent="방에 반영하기";b.disabled=ok?true:false;toast(ok?"반영했어요. 방문자 화면도 바뀌었어요.":"반영하지 못했어요. 주인 확인이 필요해요.")}
+function save(){
+  var st={owner:pend.owner,zone:pend.zone,msg:pend.msg,avail:pend.avail,color:pend.color,updatedAt:Date.now()};
+  if(window.ROOM_SERVER){if(saving||!room)return;saving=true;var sb=$("saveBtn");sb.disabled=true;sb.textContent="반영하는 중…";room.send({t:"status",status:st});
+    saveTimer=setTimeout(function(){if(saving){saving=false;sb.textContent="방에 반영하기";sb.disabled=false;toast("반영하지 못했어요. 연결을 확인해 주세요.")}},6000);return}
+  if(saving||!artifactApi)return;saving=true;var b=$("saveBtn");b.disabled=true;b.textContent="반영하는 중…";
+  artifactApi.publish(buildHTML(st)).then(function(){b.textContent="반영됨"}).catch(function(e){
+    saving=false;b.textContent="방에 반영하기";b.disabled=false;var c=e&&e.code;
+    if(c==="conflict"){toast("다른 곳에서 먼저 바뀌었어요. 최신 상태로 다시 불러와요.")}
+    else if(c==="not_writer"||c==="not_granted"||c==="consent_required"||c==="capability_disabled"||c==="not_declared"){disableOwner();toast("이 화면에서는 상태를 바꿀 수 없어요. 보기 전용이에요.")}
+    else if(c==="rate_limited"){toast("너무 자주 바꿨어요. 잠시 뒤에 다시 눌러 주세요.")}
+    else toast("반영하지 못했어요. 잠시 뒤에 다시 눌러 주세요.")});
+}
+
+/* ---------- visitors ---------- */
+var lastWave={},peersNow=[];
+function myColor(){return hashColor(myName||"guest")}
+function rankPeers(){
+  var vs=peersNow.filter(function(p){return p.kind==="viewer"});
+  vs.sort(function(a,b){var pa=a.presence||{},pb=b.presence||{},oa=pa.role==="owner"?0:1,ob=pb.role==="owner"?0:1;if(oa!==ob)return oa-ob;
+    var ja=+pa.joinedAt||Infinity,jb=+pb.joinedAt||Infinity;if(ja!==jb)return ja-jb;return a.peer<b.peer?-1:1});
+  return vs;
+}
+function renderPeople(){
+  var list=$("plist");list.innerHTML="";
+  var vs=rankPeers(),inRoom=vs.slice(0,MAX),waiting=vs.length-inRoom.length,haveMe=vs.some(function(p){return p.sameTab});
+  admitted=isOwnerUI||!haveMe||inRoom.some(function(p){return p.sameTab});
+  var shown=inRoom.map(function(p){var pr=p.presence||{};return {key:p.peer,name:clean(pr.name,16)||(p.sameTab?myLabel():"이름 없는 손님"),owner:pr.role==="owner",me:p.sameTab,color:COLORS.indexOf(pr.color)>=0?pr.color:hashColor(p.peer),wave:+pr.wave||0,x:+pr.x,z:+pr.z,ry:+pr.ry||0,char:CHARS[pr.char]?pr.char:"m"}});
+  if(!haveMe)shown.unshift({key:"me-local",name:myLabel(),owner:isOwnerUI,me:true,color:isOwnerUI?view.color:myColor(),wave:0,char:myChar});
+  shown.sort(function(a,b){return (b.owner-a.owner)||(b.me-a.me)});
+  var online=shown.some(function(s){return s.owner&&!s.me});$("online").hidden=!online||isOwnerUI;
+  shown.forEach(function(s){var li=document.createElement("li");var d=document.createElement("span");d.className="dot";d.style.background=s.owner?view.color:s.color;
+    var n=document.createElement("span");n.className="nm";n.textContent=s.name;var tg=document.createElement("span");tg.className="tag";tg.textContent=s.owner?"주인":(s.me?"나 · ":"")+((CHARS[s.char]||CHARS.m).t);
+    li.append(d,n,tg);list.appendChild(li)});
+  $("count").textContent=shown.length+"/"+MAX+"명"+(waiting>0?" · 대기 "+waiting+"명":"");
+  $("fullBar").hidden=admitted;
+  if(!hasGL)return;
+  if(admitted&&!isOwnerUI&&myName)spawnSelf();
+  if(!admitted&&self){dropWalker(self);self=null;dest=null;if(destRing)destRing.visible=false}
+  if(self){self.p.mat.color.set(myColor());self.lbl.el.textContent=myLabel()+" (나)"}
+  var keep={};
+  shown.forEach(function(s,i){if(s.owner||s.me)return;keep[s.key]=1;var G=guests[s.key],hasPos=isFinite(s.x)&&isFinite(s.z);
+    if(G&&G.char!==s.char){var keepPos=[G.x,G.z,G.ry];dropWalker(G);G=guests[s.key]=makeWalker(s.color,false,s.char);G.x=G.lx=G.tx=keepPos[0];G.z=G.lz=G.tz=keepPos[1];G.ry=G.tr=keepPos[2]}
+    if(!G){G=guests[s.key]=makeWalker(s.color,false,s.char);var sl=SLOTS[i%SLOTS.length];G.x=G.lx=G.tx=hasPos?s.x:sl[0];G.z=G.lz=G.tz=hasPos?s.z:sl[1];G.ry=G.tr=s.ry}
+    if(hasPos){G.tx=s.x;G.tz=s.z;G.tr=s.ry}
+    G.p.mat.color.set(s.color);G.lbl.el.textContent=s.name;
+    if(s.wave&&s.wave!==lastWave[s.key]){if(lastWave[s.key]!==undefined||Date.now()-s.wave<4000){G.waveAt=Date.now();toast(s.name+"님이 손을 흔들었어요")}lastWave[s.key]=s.wave}});
+  peersNow.forEach(function(p){var pr=p.presence||{};if(pr.role==="owner"&&!p.sameTab&&pr.wave&&pr.wave!==lastWave[p.peer]){if(lastWave[p.peer]!==undefined)toast((view.owner||"방 주인")+"님이 손을 흔들었어요");lastWave[p.peer]=pr.wave}});
+  for(var k in guests){if(!keep[k]){scene.remove(guests[k].p.root);removeLabel(guests[k].lbl);delete guests[k]}}
+}
+function myLabel(){return isOwnerUI?(view.owner||"방 주인"):(myName||"손님")}
+$("waveBtn").addEventListener("click",function(){var now=Date.now();
+  if(room){room.presence({wave:now}).catch(function(){})}
+  if(self)self.waveAt=now;
+  toast(room?"손을 흔들었어요":"손을 흔들었어요 (이 화면에만 보여요)")});
+
+function askName(){
+  var dlg=$("nameDlg"),inp=$("nameIn"),pick=myChar,box=$("charChips");inp.value=myName||randName();dlg.hidden=false;setTimeout(function(){inp.focus();inp.select()},50);
+  box.innerHTML="";CHAR_KEYS.forEach(function(k){var b=document.createElement("button");b.type="button";b.textContent=CHARS[k].t;b.dataset.v=k;b.setAttribute("aria-pressed",String(k===pick));
+    b.onclick=function(){pick=k;for(var i=0;i<box.children.length;i++)box.children[i].setAttribute("aria-pressed",String(box.children[i].dataset.v===k))};box.appendChild(b)});
+  $("randBtn").onclick=function(){inp.value=randName();inp.focus()};
+  $("nameForm").onsubmit=function(e){e.preventDefault();var v=clean(inp.value,16)||randName();myName=v;store("myroom.name",v);dlg.hidden=true;
+    var changed=pick!==myChar;myChar=pick;store("myroom.char",pick);
+    if(changed&&self){var ox=self.x,oz=self.z,ory=self.ry;dropWalker(self);self=null;spawnSelf();if(self){self.x=self.lx=ox;self.z=self.lz=oz;self.ry=ory}}
+    if(room)room.presence({name:v,role:"guest",color:hashColor(v),char:myChar}).catch(function(){});renderPeople()};
+}
+$("renameBtn").addEventListener("click",askName);
+
+/* ---------- boot ---------- */
+if(hasGL){try{initGL()}catch(e){hasGL=false}}
+if(!hasGL){canvas.style.display="none";$("ui").querySelector(".dragtip").hidden=true}
+renderStatus();renderPeople();applyTime();setInterval(applyTime,60000);
+/* server mode: own WebSocket server, no sign-in needed */
+function wsRoom(){
+  var ws,myId=null,handlers=[],mine={},backoff=1000;
+  function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+  function connect(){
+    ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+    ws.onopen=function(){backoff=1000;send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
+    ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
+      if(m.t==="hello"){myId=m.id;applyStatus(m.status)}
+      else if(m.t==="peers"&&Array.isArray(m.peers)){var ps=m.peers.map(function(p){return {peer:String(p.id),kind:"viewer",sameTab:p.id===myId,isMe:p.id===myId,presence:p.presence||{}}});handlers.forEach(function(h){h({peers:ps})})}
+      else if(m.t==="status")applyStatus(m.status);
+      else if(m.t==="auth")onAuth(!!m.ok);
+      else if(m.t==="saved")onSaved(!!m.ok)};
+    ws.onclose=function(){setTimeout(connect,backoff);backoff=Math.min(15000,backoff*2)};
+  }
+  connect();
+  return {send:send,
+    presence:function(p){for(var k in p){if(p[k]===null)delete mine[k];else mine[k]=p[k]}send({t:"presence",patch:p});return Promise.resolve()},
+    onPeers:function(h){handlers.push(h);return function(){}}};
+}
+function onAuth(ok){
+  if(ok){if(!isOwnerUI)enableOwner();$("nameDlg").hidden=true;$("keyDlg").hidden=true;$("renameBtn").hidden=true;
+    if(self){dropWalker(self);self=null}room.presence({name:view.owner||"방 주인",color:view.color});renderPeople()}
+  else{store("myroom.ownerKey","");toast("주인 키가 맞지 않아요.");askKey()}
+}
+function askKey(){var d=$("keyDlg"),inp=$("keyIn");d.hidden=false;inp.value="";setTimeout(function(){inp.focus()},50);
+  $("keyForm").onsubmit=function(e){e.preventDefault();var k=inp.value.trim();if(!k)return;store("myroom.ownerKey",k);d.hidden=true;room.send({t:"auth",key:k})}}
+if(window.ROOM_SERVER){
+  room=wsRoom();
+  if(location.hash==="#owner"||store("myroom.ownerKey")){if(!store("myroom.ownerKey"))askKey()}
+  else{$("renameBtn").hidden=false;if(!myName)askName()}
+  room.presence({name:myName||"손님",color:myColor(),wave:0,char:myChar});
+  room.onPeers(function(ch){peersNow=ch.peers;renderPeople()});
+}else{
+var claudeRT=window.claude;
+var useCap=function(n){return claudeRT&&claudeRT.use?claudeRT.use(n).catch(function(){return null}):Promise.resolve(null)};
+var nameTimer=setTimeout(function(){if(!isOwnerUI&&!myName)askName()},2500);
+Promise.all([useCap("user"),useCap("artifact")]).then(function(r){
+  var user=r[0];artifactApi=r[1];
+  return (user?user.canEdit():Promise.resolve(false)).then(function(can){
+    clearTimeout(nameTimer);
+    if(can&&artifactApi){enableOwner();$("nameDlg").hidden=true}
+    else{$("renameBtn").hidden=false;if(!myName&&$("nameDlg").hidden)askName()}
+    renderPeople();
+    return useCap("room");
+  });
+}).then(function(rm){
+  if(!rm){$("roomHint").hidden=false;$("roomHint").textContent="다른 방문자 표시는 claude.ai에 로그인한 사람끼리만 보여요.";return}
+  room=rm;
+  var me=isOwnerUI?{name:view.owner||"방 주인",role:"owner",color:view.color,wave:0,joinedAt:joinedAt}:{name:myName||"손님",role:"guest",color:myColor(),wave:0,joinedAt:joinedAt,char:myChar};
+  room.presence(me).catch(function(){});sendPos(true);
+  room.onPeers(function(ch){peersNow=ch.peers.slice();renderPeople()},function(){room=null;peersNow=[];renderPeople()});
+}).catch(function(){});
+}
+})();
+</script>
