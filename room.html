@@ -830,7 +830,7 @@ function initGL(){
   zzzLbl=addLabel("zzz",function(v){v.x=70;v.y=FY(2)-20;return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
   signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-25;return true});
-  petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)-(pet.pose==="sleep"||pet.pose==="rest"?10:17);return true});petLbl.el.textContent="🐾 푸치";
+  petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)+1;return true});petLbl.anchor="translate(-50%,0)";petLbl.el.textContent="🐾 푸치";
   mailLbl=addLabel("mail",function(v){v.x=3;v.y=GROUND+11;return true});mailLbl.anchor="translate(0,0)";mailLbl.el.textContent="✉ 방명록";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
   fitHouse();window.addEventListener("resize",refit);window.addEventListener("orientationchange",refit);
