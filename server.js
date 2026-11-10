@@ -166,7 +166,7 @@ wss.on("connection", (ws) => {
       broadcastPeers();
     }
     else if (m.t === "chat") {
-      const text = cleanText(m.text, 20); // 한 번에 최대 20자
+      const text = cleanText(m.text, 25); // 한 번에 최대 25자
       if (!text) return;
       if (c.chatAt && now - c.chatAt < 800) { ws.send(JSON.stringify({ t: "chat_err" })); return; }
       c.chatAt = now;
