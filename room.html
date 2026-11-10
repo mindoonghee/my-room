@@ -757,10 +757,14 @@ if(window.visualViewport)window.visualViewport.addEventListener("resize",functio
 var METEORS=[],meteorHour=-1,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
 function spawnMeteors(){var n=2+(Math.random()<0.5?1:0),now=performance.now();
   for(var i=0;i<n;i++)METEORS.push({t0:now+i*(700+Math.random()*600),x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}
+// after sunset: 6 PM through 5 AM (the sky's "night" value is still low at 6-7 PM, so go by the clock)
+function meteorTime(h){return h>=18||h<6}
 function checkMeteors(){
-  var now=performance.now();
-  if(meteorPreview){if(night>0.3&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
-  var d=new Date();if(night>0.3&&d.getMinutes()===0&&d.getHours()!==meteorHour){meteorHour=d.getHours();spawnMeteors()}
+  var now=performance.now(),d=new Date();
+  if(meteorPreview){if(meteorTime(d.getHours())&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
+  // on the hour (first minute); a key of date+hour so it fires once per hour even across midnight
+  var key=d.toDateString()+d.getHours();
+  if(meteorTime(d.getHours())&&d.getMinutes()===0&&key!==meteorHour){meteorHour=key;spawnMeteors()}
 }
 function drawMeteors(W,b,skyH){
   if(reduced||!METEORS.length)return;var now=performance.now(),keep=[];
