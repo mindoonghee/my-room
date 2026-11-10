@@ -982,7 +982,7 @@ function askName(){
   $("nameForm").onsubmit=function(e){e.preventDefault();var v=clean(inp.value,16)||randName();myName=v;store("myroom.name",v);dlg.hidden=true;
     var changed=pick!==myChar;myChar=pick;store("myroom.char",pick);
     if(changed&&self){var ox=self.x,oz=self.z,ory=self.ry;dropWalker(self);self=null;spawnSelf();if(self){self.x=self.lx=ox;self.z=self.lz=oz;self.ry=ory}}
-    if(room)room.presence({name:v,role:"guest",color:hashColor(v),char:myChar}).catch(function(){});renderPeople()};
+    if(room)room.presence({name:v,role:"guest",color:hashColor(v),char:myChar,in:1}).catch(function(){});renderPeople()};
 }
 $("renameBtn").addEventListener("click",askName);
 
@@ -1016,7 +1016,7 @@ $("gbList").addEventListener("click",function(e){var b=e.target.closest&&e.targe
 function onGB(list){var cut=Date.now()-86400000;gbItems=Array.isArray(list)?list.slice(-50).filter(function(it){return it&&typeof it.text==="string"&&+it.at>cut}).map(function(it){return {id:String(it.id),name:clean(it.name,16)||"손님",text:clean(it.text,200),at:+it.at||0,owner:!!it.owner}}):[];renderGB()}
 
 /* ---------- doorbell: "ding-dong" when a new visitor arrives ---------- */
-var actx=null,soundOn=store("myroom.sound")!=="off",knownPeers=null,leftNames={},lastBell=0;
+var actx=null,soundOn=store("myroom.sound")!=="off",knownPeers=null,leftNames={},lastBell=0,arrPending={};
 function unlockAudio(){try{if(!actx){var AC=window.AudioContext||window.webkitAudioContext;if(AC)actx=new AC()}if(actx&&actx.state==="suspended")actx.resume()}catch(e){}}
 ["pointerdown","keydown","touchstart"].forEach(function(ev){window.addEventListener(ev,unlockAudio,{passive:true})});
 function tone(f,t0,dur,vol){var o=actx.createOscillator(),o2=actx.createOscillator(),g=actx.createGain();o.type="sine";o2.type="sine";o.frequency.value=f;o2.frequency.value=f*2.01;
@@ -1032,14 +1032,19 @@ function checkArrivals(list){
   list.forEach(function(p){if(p.kind==="viewer"&&!p.sameTab)cur[p.peer]=(p.presence&&clean(p.presence.name,16))||""});
   if(knownPeers===null){knownPeers=cur;return}
   for(var k in knownPeers){if(!(k in cur)&&knownPeers[k])leftNames[knownPeers[k]]=now}
-  var fresh=[];for(var k2 in cur){if(!(k2 in knownPeers))fresh.push(k2)}
-  knownPeers=cur;if(!fresh.length)return;
-  setTimeout(function(){
-    var names=[],ring=false;
-    fresh.forEach(function(k){var pr=null;peersNow.forEach(function(p){if(p.peer===k)pr=p.presence||{}});if(!pr)return;
-      var nm=clean(pr.name,16);if(nm&&leftNames[nm]&&Date.now()-leftNames[nm]<30000)return; // same person just reloaded
-      ring=true;names.push(pr.role==="owner"?(view.owner||"방 주인"):(nm||"새 손님"))});
-    if(!ring)return;dingDong();toast("띵동! "+names.join(", ")+"님이 들어왔어요")},700);
+  for(var k2 in cur){if(!(k2 in knownPeers))arrPending[k2]=now}
+  knownPeers=cur;
+  // ring only once a guest has really entered (picked a name). Someone still on the name screen,
+  // the owner's own other phone/PC, or a page that just opened and closed never rings.
+  var names=[];
+  for(var k3 in arrPending){
+    var pr=null;list.forEach(function(p){if(p.peer===k3&&p.kind==="viewer"&&!p.sameTab)pr=p.presence||{}});
+    if(!pr||pr.role==="owner"||now-arrPending[k3]>600000){delete arrPending[k3];continue}
+    if(!pr.in)continue;
+    delete arrPending[k3];
+    var nm=clean(pr.name,16);if(nm&&leftNames[nm]&&now-leftNames[nm]<30000)continue; // same person just reloaded
+    names.push(nm||"새 손님")}
+  if(names.length){dingDong();toast("띵동! "+names.join(", ")+"님이 들어왔어요")}
 }
 /* ---------- chat (max 20 chars per message) ---------- */
 var chatItems=[],ownerSay=null;
@@ -1135,7 +1140,7 @@ if(window.ROOM_SERVER){
   room=wsRoom();
   if(location.hash==="#owner"||store("myroom.ownerKey")){if(!store("myroom.ownerKey"))askKey()}
   else{$("renameBtn").hidden=false;$("ownerBtn").hidden=false;if(!myName)askName()}
-  room.presence({name:myName||"손님",color:myColor(),wave:0,char:myChar});
+  room.presence({name:myName||"손님",color:myColor(),wave:0,char:myChar,in:myName&&!store("myroom.ownerKey")?1:0});
   room.onPeers(function(ch){peersNow=ch.peers;checkArrivals(peersNow);renderPeople()});
 }else{
 var claudeRT=window.claude;
