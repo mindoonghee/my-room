@@ -104,6 +104,8 @@ function applyPresence(c, patch) {
   if ("name" in patch) p.name = cleanText(patch.name, 16);
   if ("color" in patch && /^#[0-9a-fA-F]{6}$/.test(patch.color)) p.color = patch.color;
   if ("char" in patch && CHARS.includes(patch.char)) p.char = patch.char;
+  if ("in" in patch) p.in = patch.in ? 1 : 0; // 이름을 정하고 실제로 방에 들어온 손님
+
   if ("wave" in patch) { const w = num(patch.wave, 0, 1e15); if (w !== undefined) p.wave = w; }
   if ("x" in patch) { const v = num(patch.x, -8, 11); if (v !== undefined) p.x = v; }
   if ("z" in patch) { const v = num(patch.z, -6, 6); if (v !== undefined) p.z = v; }
