@@ -170,7 +170,7 @@ input[type=text],input[type=password]{font:inherit;font-size:16px;padding:8px 10
     <h2><span>지금 방에 있는 사람</span><span class="hr"><small id="count"></small><button id="peopleFold" type="button" class="fold" aria-expanded="true" aria-controls="plist chatBox">접기 ▼</button></span></h2>
     <ul id="plist"></ul>
     <div id="chatBox" hidden><ul id="chatLog" aria-live="polite" aria-label="대화"></ul>
-      <form id="chatForm" class="chatrow"><input type="text" id="chatIn" maxlength="20" placeholder="대화하기 (한 번에 20자)" autocomplete="off" enterkeyhint="send" aria-label="대화 입력"><span id="chatCnt" class="hint">0/20</span><button type="submit" class="primary" id="chatSend">보내기</button></form></div>
+      <form id="chatForm" class="chatrow"><input type="text" id="chatIn" maxlength="25" placeholder="대화하기 (한 번에 25자)" autocomplete="off" enterkeyhint="send" aria-label="대화 입력"><span id="chatCnt" class="hint">0/25</span><button type="submit" class="primary" id="chatSend">보내기</button></form></div>
     <div class="row"><button id="waveBtn" type="button">손 흔들기</button><button id="gbBtn" type="button">방명록</button><button id="soundBtn" type="button" aria-pressed="true">🔔 소리 켬</button><button id="renameBtn" class="link" type="button" hidden>이름·캐릭터 바꾸기</button><button id="ownerBtn" class="link" type="button" hidden>방 주인으로 들어가기</button><button id="ownerToggle" class="primary" type="button" hidden aria-controls="ownerPanel" aria-expanded="false">내 상태 바꾸기</button></div>
     <p class="hint" id="roomHint" hidden></p>
   </aside>
@@ -1061,7 +1061,7 @@ function checkArrivals(list){
     names.push(nm||"새 손님")}
   if(names.length){dingDong();toast("띵동! "+names.join(", ")+"님이 들어왔어요")}
 }
-/* ---------- chat (max 20 chars per message) ---------- */
+/* ---------- chat (max 25 chars per message) ---------- */
 var chatItems=[],ownerSay=null;
 function renderChat(){
   var ul=$("chatLog");ul.textContent="";
@@ -1072,7 +1072,7 @@ function renderChat(){
 }
 function onChat(m,isMe,quiet){
   if(!m||typeof m.text!=="string")return;
-  var c={name:clean(m.name,16)||"손님",text:clean(m.text,20),owner:!!m.owner,me:!!isMe,at:+m.at||Date.now()};if(!c.text)return;
+  var c={name:clean(m.name,16)||"손님",text:clean(m.text,25),owner:!!m.owner,me:!!isMe,at:+m.at||Date.now()};if(!c.text)return;
   chatItems.push(c);if(chatItems.length>30)chatItems.shift();
   if(quiet)return;renderChat();if(folded&&!isMe){unread++;renderFold()}
   if(Date.now()-c.at>15000)return;
@@ -1081,10 +1081,10 @@ function onChat(m,isMe,quiet){
   var G=isMe?self:guests[String(m.from)];
   if(G&&G.bub){G.bub.el.textContent=c.text;G.bub.el.hidden=false;G.sayUntil=until}
 }
-$("chatForm").addEventListener("submit",function(e){e.preventDefault();if(!window.ROOM_SERVER||!room)return;var t=clean($("chatIn").value,20);if(!t)return;
-  room.send({t:"chat",text:t});$("chatIn").value="";$("chatCnt").textContent="0/20";
+$("chatForm").addEventListener("submit",function(e){e.preventDefault();if(!window.ROOM_SERVER||!room)return;var t=clean($("chatIn").value,25);if(!t)return;
+  room.send({t:"chat",text:t});$("chatIn").value="";$("chatCnt").textContent="0/25";
   if(window.matchMedia&&matchMedia("(pointer: coarse)").matches)$("chatIn").blur()});
-$("chatIn").addEventListener("input",function(){$("chatCnt").textContent=this.value.length+"/20"});
+$("chatIn").addEventListener("input",function(){$("chatCnt").textContent=this.value.length+"/25"});
 $("chatIn").addEventListener("keydown",function(e){if(e.key==="Enter"&&e.isComposing){e.preventDefault()}});
 if(window.ROOM_SERVER){$("chatBox").hidden=false;renderChat()}
 
