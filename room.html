@@ -280,14 +280,16 @@ function seeded(s){return function(){s=(s*16807)%2147483647;return (s-1)/2147483
 function lerpHex(a,b,t){var A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);function ch(sh){var p=(A>>sh)&255,q=(B>>sh)&255;return Math.round(p+(q-p)*t)}return "rgb("+ch(16)+","+ch(8)+","+ch(0)+")"}
 function hexOf(rgb){var m=/rgb\((\d+),(\d+),(\d+)\)/.exec(rgb);if(!m)return rgb;return "#"+[m[1],m[2],m[3]].map(function(v){return ("0"+(+v).toString(16)).slice(-2)}).join("")}
 var SKY=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[16,"#5f9ad8","#cfe0ee"],[17.8,"#4b6aa6","#f2b07a"],[19,"#262d5e","#c46a5a"],[20.3,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
-// winter (Nov-Feb): night is 6 PM - 5 AM; sunset glow 4:30-6 PM
-var SKY_W=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[15.5,"#5f9ad8","#cfe0ee"],[16.6,"#4b6aa6","#f2b07a"],[17.3,"#262d5e","#c46a5a"],[18,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
+// winter (Nov-Feb): night background from 7 PM to 5 AM; sunset glow 4:30-7 PM
+var SKY_W=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[15.8,"#5f9ad8","#cfe0ee"],[17,"#4b6aa6","#f2b07a"],[18,"#262d5e","#c46a5a"],[19,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
 function isWinter(d){var m=d.getMonth();return m>=10||m<=1}
-function dayAmount(h,w){if(w){if(h<5||h>=18)return 0;if(h<7)return (h-5)/2;if(h<16)return 1;return Math.max(0,1-(h-16)/2)}
+// Korea time (UTC+9) no matter what time zone the phone is set to: a Date whose local getters read KST
+function kstNow(){var n=Date.now();return new Date(n+(540+new Date(n).getTimezoneOffset())*60000)}
+function dayAmount(h,w){if(w){if(h<5||h>=19)return 0;if(h<7)return (h-5)/2;if(h<16.5)return 1;return Math.max(0,1-(h-16.5)/2.5)}
   if(h<5||h>=20.5)return 0;if(h<7)return (h-5)/2;if(h<17.5)return 1;return Math.max(0,1-(h-17.5)/3)}
-function phaseName(h,w){return h<5?"한밤":h<7?"새벽":h<11?"아침":h<(w?16:17)?"낮":h<(w?18:20)?"저녁":"밤"}
+function phaseName(h,w){return h<5?"한밤":h<7?"새벽":h<11?"아침":h<17?"낮":h<(w?19:20)?"저녁":"밤"}
 function applyTime(){
-  var d=new Date(),h=d.getHours()+d.getMinutes()/60,i=0,w=isWinter(d),S=w?SKY_W:SKY;dayAmt=dayAmount(h,w);night=1-Math.min(1,dayAmt*1.6);skyHour=h;
+  var d=kstNow(),h=d.getHours()+d.getMinutes()/60,i=0,w=isWinter(d),S=w?SKY_W:SKY;dayAmt=dayAmount(h,w);night=1-Math.min(1,dayAmt*1.6);skyHour=h;
   while(S[i+1][0]<=h)i++;var a=S[i],b=S[i+1],t=(h-a[0])/(b[0]-a[0]);skyTop=hexOf(lerpHex(a[1],b[1],t));skyBot=hexOf(lerpHex(a[2],b[2],t));
   var el=$("clock");if(el)el.textContent="창밖은 "+phaseName(h,w)+" · "+d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"});
 }
@@ -764,7 +766,7 @@ function spawnMeteors(){var n=2+Math.floor(Math.random()*4),now=performance.now(
 // 11 times a night, on the hour from 6 PM to 4 AM (night ends at 5 AM). Goes by the clock, not the sky value.
 function meteorTime(h){return h>=18||h<5}
 function checkMeteors(){
-  var now=performance.now(),d=new Date();
+  var now=performance.now(),d=kstNow();
   if(meteorPreview){if(meteorTime(d.getHours())&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
   // on the hour (first minute); a key of date+hour so it fires once per hour even across midnight
   var key=d.toDateString()+d.getHours();
