@@ -763,8 +763,8 @@ if(window.visualViewport)window.visualViewport.addEventListener("resize",functio
 var METEORS=[],meteorHour=-1,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
 function spawnMeteors(){var n=2+Math.floor(Math.random()*4),now=performance.now(),at=now; // 2-5 meteors, staggered
   for(var i=0;i<n;i++){if(i)at+=600+Math.random()*1300;METEORS.push({t0:at,x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}}
-// 11 times a night, on the hour from 6 PM to 4 AM (night ends at 5 AM). Goes by the clock, not the sky value.
-function meteorTime(h){return h>=18||h<5}
+// 11 times a night, on the hour from 7 PM to 5 AM (Korea time). Goes by the clock, not the sky value.
+function meteorTime(h){return h>=19||h<=5}
 function checkMeteors(){
   var now=performance.now(),d=kstNow();
   if(meteorPreview){if(meteorTime(d.getHours())&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
