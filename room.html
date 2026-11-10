@@ -57,8 +57,11 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
   padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(20,16,40,.14);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:14px 16px;min-width:0}
-.status{grid-column:1;grid-row:1;align-self:start;display:flex;flex-direction:column;gap:6px}
+.status{grid-column:1;grid-row:1;align-self:start;display:flex;flex-direction:column;gap:5px;padding:10px 14px}
 .eyebrow{font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.status .eyebrow{font-family:var(--display);font-size:16px;letter-spacing:0;color:var(--fg);line-height:1.25;overflow-wrap:anywhere}
+.status h1,.status #msg{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.status{position:relative}
 .status h1{margin:0;font-family:var(--display);font-weight:400;font-size:26px;line-height:1.2;text-wrap:balance}
 .status p{margin:0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
@@ -112,8 +115,9 @@ input[type=text],input[type=password]{font:inherit;font-size:16px;padding:8px 10
     padding-block:calc(10px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-bottom,0px));
     padding-left:max(10px, env(safe-area-inset-left, 0px));padding-right:max(10px, env(safe-area-inset-right, 0px))}
   .card{border-radius:14px;padding:10px 12px}
-  .status{grid-column:1;grid-row:1;gap:4px}
+  .status{grid-column:1;grid-row:1;gap:4px;padding:8px 12px}
   .eyebrow{font-size:11px}
+  .status .eyebrow{font-size:15px}
   .status h1{font-size:19px}
   .status p{font-size:14px}
   .meta{gap:4px}
@@ -148,7 +152,7 @@ input[type=text],input[type=password]{font:inherit;font-size:16px;padding:8px 10
   .dragtip{display:none}
 }
 @media (max-width:720px) and (max-height:560px){
-  .status .meta #clock,.status .eyebrow{display:none}
+  .status .meta #ago{display:none}
 }
 @media (prefers-reduced-motion: reduce){.lbl.zzz{animation:none}#toast{transition:none}}
 </style>
@@ -255,7 +259,7 @@ var toastT;function toast(t){var el=$("toast");el.textContent=t;el.classList.add
 /* ---------- pixel house (2D dot art, 3 floors) ---------- */
 var canvas=$("scene"),ctx=null,buf=null,bx=null,backC=null,frontC=null,charC=null,chx=null,labels=[],guests={};
 var hasGL=!!(canvas&&canvas.getContext);
-var CHARS={m:{t:"남자"},f:{t:"여자"},cat:{t:"고양이",fur:"#f0a35a"},dog:{t:"강아지",fur:"#c99566"},tiger:{t:"호랑이",fur:"#f08a2c"},rabbit:{t:"토끼",fur:"#f3efea"},mouse:{t:"쥐",fur:"#bdb7b2"},bear:{t:"곰",fur:"#8f5f3e"},roach:{t:"바퀴벌레",fur:"#a8683c"}};
+var CHARS={m:{t:"남자"},f:{t:"여자"},cat:{t:"검은 고양이",fur:"#2b2a33"},dog:{t:"강아지",fur:"#c99566"},tiger:{t:"호랑이",fur:"#f08a2c"},rabbit:{t:"토끼",fur:"#f3efea"},mouse:{t:"쥐",fur:"#bdb7b2"},bear:{t:"곰",fur:"#8f5f3e"},roach:{t:"바퀴벌레",fur:"#a8683c"}};
 var CHAR_KEYS=Object.keys(CHARS);
 view.char=CHARS[SAVED.char]?SAVED.char:"m";
 
@@ -305,10 +309,11 @@ function drawHead(x,hy,ch,o){
   if(back)return;
   // face
   var blink=!o.closed&&((t*1000+o.seed*977)%4200)<130;
-  if(o.closed||blink){R(EYE,x-3,hy+3,2,1);R(EYE,x+1,hy+3,2,1)}
-  else if(an){R(EYE,x-2,hy+3,1,1);R(EYE,x+1,hy+3,1,1)}
+  var eyeC=ch==="cat"?"#ffd84a":EYE,lidC=ch==="cat"?"#8a8794":EYE;
+  if(o.closed||blink){R(lidC,x-3,hy+3,2,1);R(lidC,x+1,hy+3,2,1)}
+  else if(an){R(eyeC,x-2,hy+3,1,1);R(eyeC,x+1,hy+3,1,1)}
   else{R(EYE,x-2,hy+3,1,2);R(EYE,x+1,hy+3,1,2)}
-  if(an){var mz=ch==="bear"?"#d9b08a":ch==="mouse"||ch==="rabbit"?"#ffffff":"#fbf1e2";R(mz,x-2,hy+4,4,2);R(ch==="rabbit"||ch==="mouse"?PINK:DK,x-1,hy+4,2,1)}
+  if(an){var mz=ch==="bear"?"#d9b08a":ch==="mouse"||ch==="rabbit"?"#ffffff":ch==="cat"?"#45434f":"#fbf1e2";R(mz,x-2,hy+4,4,2);R(ch==="rabbit"||ch==="mouse"||ch==="cat"?PINK:DK,x-1,hy+4,2,1)}
   R(BLUSH,x-3,hy+5,1,1);R(BLUSH,x+2,hy+5,1,1);
 }
 /* base = feet line (stand) or seat line (sit) */
@@ -327,6 +332,7 @@ function drawChar(x,base,o){
   if(!sit&&(ch==="cat"||ch==="tiger"||ch==="dog")){var wag=Math.sin(t*6)>0?1:0;R(skin,x+4,hip-2,2,1);R(skin,x+5+wag,hip-4,1,2)}
   // body
   R(shirt,x-4,hip-6,8,6);R(shirtD,x-4,hip-1,8,1);
+  if(ch==="cat"){R("#d81f3c",x-4,hip-6,8,1);if(!back){R("#d81f3c",x-3,hip-7,2,2);R("#d81f3c",x+1,hip-7,2,2);R("#9e0f22",x-1,hip-7,2,2);R("#ff6b7d",x-3,hip-7,1,1);R("#d81f3c",x-2,hip-5,1,2);R("#d81f3c",x+1,hip-5,1,2)}}
   if(ch==="f"&&!back)R(shirt,x-5,hip-2,10,2);
   if(ch==="rabbit"&&back)R("#ffffff",x-1,hip-2,2,2);
   // arms
