@@ -542,7 +542,7 @@ function drawOwner(t){
   o.pose=sp.pose;drawChar(sp.x,F+(sp.dy||0),o);
 }
 /* ---------- 푸치: the owner's beige poodle, follows the owner around the house ---------- */
-var pet={x:90,lv:0,dir:1,ph:0,mv:false,init:false},petLbl=null;
+var pet={x:90,lv:0,dir:1,ph:0,mv:false,init:false,v:0,off:-13,offT:-13},petLbl=null;
 function drawPoodle(x,base,o){
   var d=o.dir<0?-1:1,t=o.t||0,pose=o.pose||"sit";x=Math.round(x);base=Math.round(base);
   function P(dx,dy,w,h,c){R(c,d>0?x+dx:x-dx-w+1,base+dy,w,h)}
@@ -579,7 +579,7 @@ function drawPoodle(x,base,o){
 function petTarget(){
   var now=Date.now()/1000;
   if(view.zone==="out"){var slot=Math.floor(now/7),r=seeded(slot*7919+13);r();var lv=Math.floor(r()*3);return {x:50+r()*110,lv:Math.min(2,lv),pose:"sit"}}
-  if(view.zone==="clean"){var cp=cleanPos(now);return {x:cp.climb?LAD:Math.max(X0+6,Math.min(X1-6,cp.x-cp.dir*13)),lv:Math.round(cp.lv),pose:"sit"}}
+  if(view.zone==="clean"){var cp=cleanPos(now);pet.offT=-cp.dir*13;return {x:cp.climb?LAD:Math.max(X0+6,Math.min(X1-6,cp.x+pet.off)),lv:Math.round(cp.lv),pose:"sit",follow:true}}
   var sp=SPOT[view.zone];if(!sp)return {x:90,lv:0,pose:"sit"};
   var rg=PICK[view.zone]||[sp.lv,X0,X1],x0=rg[1]+6,x1=rg[2]-6,side=sp.x+14<=x1?14:-14;
   var tx=sp.x+side;
@@ -587,13 +587,24 @@ function petTarget(){
 }
 function stepPet(dt){
   var T=petTarget();
+  dt=Math.min(dt,0.1);
+  // the "stay behind the owner" offset swings over gently when the owner turns around
+  pet.off+=(pet.offT-pet.off)*Math.min(1,dt*1.6);
   if(!pet.init){pet.x=T.x;pet.lv=T.lv;pet.init=true}
-  var sp=dt*(Math.abs(T.x-pet.x)>30||Math.abs(T.lv-pet.lv)>0.01?40:22);pet.mv=false;
-  if(Math.abs(pet.lv-T.lv)>0.002){
-    if(Math.abs(pet.x-LAD)>0.6){var d=LAD-pet.x;pet.dir=d>0?1:-1;pet.x+=Math.sign(d)*Math.min(Math.abs(d),sp);pet.mv=true}
-    else{pet.x=LAD;var dz=T.lv-pet.lv;pet.lv+=Math.sign(dz)*Math.min(Math.abs(dz),1.1*dt);if(Math.abs(T.lv-pet.lv)<=0.002)pet.lv=T.lv;pet.mv=true}}
-  else{var d2=T.x-pet.x;if(Math.abs(d2)>1.5){pet.dir=d2>0?1:-1;pet.x+=Math.sign(d2)*Math.min(Math.abs(d2),sp);pet.mv=true}}
-  if(pet.mv)pet.ph+=dt*14;pet.pose=pet.mv?"walk":T.pose;
+  var climbing=false,gx=T.x;
+  if(Math.abs(pet.lv-T.lv)>0.002){gx=LAD;
+    if(Math.abs(pet.x-LAD)<0.8&&Math.abs(pet.v)<6){climbing=true;pet.x=LAD;pet.v=0;var dz=T.lv-pet.lv;pet.lv+=Math.sign(dz)*Math.min(Math.abs(dz),1.1*dt);if(Math.abs(T.lv-pet.lv)<=0.002)pet.lv=T.lv}}
+  if(!climbing){
+    // smooth follow: speed grows with distance, eases in and out (no stop-start stutter)
+    var d=gx-pet.x,maxV=Math.abs(d)>30||gx!==T.x?40:26,want=Math.max(-maxV,Math.min(maxV,d*2.2));
+    if(Math.abs(d)<0.6&&Math.abs(pet.v)<3)want=0;
+    pet.v+=(want-pet.v)*Math.min(1,dt*(T.follow?4:6));pet.x+=pet.v*dt;
+    if(Math.abs(pet.v)<0.3&&Math.abs(d)<0.6)pet.v=0}
+  // walk / stand with hysteresis so the pose and facing don't flicker
+  var sp=Math.abs(pet.v);
+  if(climbing)pet.mv=true;else if(pet.mv&&sp<1.5)pet.mv=false;else if(!pet.mv&&sp>4)pet.mv=true;
+  if(!climbing&&sp>5)pet.dir=pet.v>0?1:-1;
+  if(pet.mv)pet.ph+=dt*(climbing?14:Math.max(6,sp*0.9));pet.pose=pet.mv?"walk":T.pose;
   if(!pet.mv&&view.zone!=="out"&&view.zone!=="clean"){var sp2=SPOT[view.zone];if(sp2)pet.dir=sp2.x>=pet.x?1:-1}
 }
 function drawPet(t){drawPoodle(pet.x,FY(pet.lv),{dir:pet.dir,t:t,ph:pet.ph,pose:pet.pose})}
@@ -850,7 +861,7 @@ function renderStatus(){
   var m=$("msg");m.hidden=!view.msg;m.textContent=view.msg?"“"+view.msg+"”":"";
   var a=$("avail");a.className="pill "+view.avail;a.querySelector("span").textContent=AVAIL[view.avail];
   $("ago").textContent=ago(view.updatedAt);
-  if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";mainLbl.el.querySelector("span").textContent=ownerSay?"💬 "+ownerSay.text:(view.msg||z.act);mainLbl.el.classList.toggle("talk",!!ownerSay);mainLbl.el.hidden=view.zone==="out";
+  if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";var lsp=mainLbl.el.querySelector("span"),ltx=ownerSay?"💬 "+ownerSay.text:(view.msg||"");lsp.textContent=ltx;lsp.style.display=ltx?"":"none";mainLbl.el.classList.toggle("talk",!!ownerSay);mainLbl.el.hidden=view.zone==="out";
     signLbl.el.textContent=(view.owner||"주인")+" 외출 중"}
   document.title="나만의 방";
 }
