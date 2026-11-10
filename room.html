@@ -759,26 +759,28 @@ document.addEventListener("focusout",function(){setTimeout(function(){if(!typing
 if(window.visualViewport)window.visualViewport.addEventListener("resize",function(){if(!typing())refit()});
 
 /* ---------- main canvas: sky, snow, ground, house ---------- */
-/* shooting stars: on the hour from 8 PM to 3 AM (Korea time), 2-5 meteors fall spread over that one minute
-   (?meteor = preview: a burst every 8s) */
-var METEORS=[],meteorPlan=null,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
+/* shooting stars: from 8 PM to 3 AM (Korea time), about 10 random showers an hour, 2-5 meteors each
+   (?meteortest = test only: a burst every 8s at any hour. The old ?meteor link no longer does anything special.) */
+var METEORS=[],meteorPlan=null,meteorPreview=/[?&]meteortest\b/.test(location.search),meteorNext=0;
 function spawnOne(at){METEORS.push({t0:at,x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}
-function spawnMeteors(){var n=2+Math.floor(Math.random()*4),at=performance.now();for(var i=0;i<n;i++){if(i)at+=600+Math.random()*1300;spawnOne(at)}}
-// 8 times a night: 8, 9, 10, 11 PM, 12, 1, 2, 3 AM
-function meteorTime(h){return h>=20||h<=3}
+function spawnMeteors(n){n=n||2+Math.floor(Math.random()*4);var at=performance.now();for(var i=0;i<n;i++){if(i)at+=600+Math.random()*1300;spawnOne(at)}}
+// meteor hours: 8 PM until 3 AM (Korea time)
+function meteorTime(h){return h>=20||h<3}
 function checkMeteors(){
   var now=performance.now(),d=kstNow();
   if(meteorPreview){if(now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
-  if(!meteorTime(d.getHours())||d.getMinutes()!==0)return;
-  // same plan for every viewer this hour: how many (2-5) and at which second of the minute each one falls
+  if(!meteorTime(d.getHours()))return;
+  // about 10 showers an hour at random moments (one somewhere in each 6-minute slice), 2-5 meteors each.
+  // The plan comes from the date+hour, so every viewer sees the same showers at the same moment.
   var key=((d.getFullYear()*12+d.getMonth())*31+d.getDate())*24+d.getHours();
-  if(!meteorPlan||meteorPlan.key!==key){var r=seeded(key*7+3),n=2+Math.floor(r()*4),list=[];
-    for(var i=0;i<n;i++)list.push({s:Math.floor(i*55/n+r()*(55/n-1.5)),done:false});meteorPlan={key:key,list:list}}
-  var sec=d.getSeconds()+d.getMilliseconds()/1000;
-  meteorPlan.list.forEach(function(m){if(!m.done&&sec>=m.s){m.done=true;if(sec-m.s<3)spawnOne(now)}});
+  if(!meteorPlan||meteorPlan.key!==key){var r=seeded(key*7+3),list=[];r();r(); // warm up: nearby hours give nearby first numbers
+    for(var i=0;i<10;i++)list.push({s:i*360+5+Math.floor(r()*345),n:2+Math.floor(r()*4),done:false});meteorPlan={key:key,list:list}}
+  var sec=d.getMinutes()*60+d.getSeconds()+d.getMilliseconds()/1000;
+  meteorPlan.list.forEach(function(m){if(!m.done&&sec>=m.s){m.done=true;if(sec-m.s<4)spawnMeteors(m.n)}});
 }
 function drawMeteors(W,b,skyH){
-  if(reduced||!METEORS.length)return;var now=performance.now(),keep=[];
+  // shown even with "reduce motion" on (e.g. Windows animation effects off): it is a short, gentle sparkle
+  if(!METEORS.length)return;var now=performance.now(),keep=[];
   METEORS.forEach(function(m){var k=(now-m.t0)/m.dur;if(k<0){keep.push(m);return}if(k>1)return;keep.push(m);
     var sr=cardRect(document.querySelector(".status")),ymin=(sr&&window.innerWidth<=720?sr.bottom+8:12)*px.dpr,ymax=Math.max(ymin+40,px.oy*px.dpr+20*b);
     var dist=m.len*W,hx=m.x*W+Math.cos(m.ang)*dist*k,hy=ymin+m.y*(ymax-ymin)+Math.sin(m.ang)*dist*k,fade=k<0.15?k/0.15:k>0.75?(1-k)/0.25:1;
