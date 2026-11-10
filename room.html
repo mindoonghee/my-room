@@ -280,12 +280,12 @@ function seeded(s){return function(){s=(s*16807)%2147483647;return (s-1)/2147483
 function lerpHex(a,b,t){var A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);function ch(sh){var p=(A>>sh)&255,q=(B>>sh)&255;return Math.round(p+(q-p)*t)}return "rgb("+ch(16)+","+ch(8)+","+ch(0)+")"}
 function hexOf(rgb){var m=/rgb\((\d+),(\d+),(\d+)\)/.exec(rgb);if(!m)return rgb;return "#"+[m[1],m[2],m[3]].map(function(v){return ("0"+(+v).toString(16)).slice(-2)}).join("")}
 var SKY=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[16,"#5f9ad8","#cfe0ee"],[17.8,"#4b6aa6","#f2b07a"],[19,"#262d5e","#c46a5a"],[20.3,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
-// winter (Nov-Feb): night background from 7 PM to 5 AM; sunset glow 4:30-7 PM
-var SKY_W=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[15.8,"#5f9ad8","#cfe0ee"],[17,"#4b6aa6","#f2b07a"],[18,"#262d5e","#c46a5a"],[19,"#0d1230","#2a2448"],[24,"#070b1c","#141a36"]];
+// winter (Nov-Feb): sunset glow 4:30-6 PM, deep dusk till 7, then a full deep-night sky (same as midnight) from 7 PM to 5 AM
+var SKY_W=[[0,"#070b1c","#141a36"],[4.5,"#0a0f26","#1c2142"],[5.8,"#2c3566","#d98a72"],[7,"#6f9fd6","#f3cfa6"],[9,"#5a97dd","#bcd9f2"],[15.6,"#5f9ad8","#cfe0ee"],[16.7,"#4b6aa6","#f2b07a"],[17.5,"#262d5e","#c46a5a"],[18.3,"#0d1230","#2a2448"],[19,"#070b1c","#141a36"],[24,"#070b1c","#141a36"]];
 function isWinter(d){var m=d.getMonth();return m>=10||m<=1}
 // Korea time (UTC+9) no matter what time zone the phone is set to: a Date whose local getters read KST
 function kstNow(){var n=Date.now();return new Date(n+(540+new Date(n).getTimezoneOffset())*60000)}
-function dayAmount(h,w){if(w){if(h<5||h>=19)return 0;if(h<7)return (h-5)/2;if(h<16.5)return 1;return Math.max(0,1-(h-16.5)/2.5)}
+function dayAmount(h,w){if(w){if(h<5||h>=18.5)return 0;if(h<7)return (h-5)/2;if(h<16.3)return 1;return Math.max(0,1-(h-16.3)/2.2)}
   if(h<5||h>=20.5)return 0;if(h<7)return (h-5)/2;if(h<17.5)return 1;return Math.max(0,1-(h-17.5)/3)}
 function phaseName(h,w){return h<5?"한밤":h<7?"새벽":h<11?"아침":h<17?"낮":h<(w?19:20)?"저녁":"밤"}
 function applyTime(){
@@ -759,18 +759,23 @@ document.addEventListener("focusout",function(){setTimeout(function(){if(!typing
 if(window.visualViewport)window.visualViewport.addEventListener("resize",function(){if(!typing())refit()});
 
 /* ---------- main canvas: sky, snow, ground, house ---------- */
-/* shooting stars: at night, 2-3 meteors fall once every hour on the hour (?meteor = preview every 8s) */
-var METEORS=[],meteorHour=-1,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
-function spawnMeteors(){var n=2+Math.floor(Math.random()*4),now=performance.now(),at=now; // 2-5 meteors, staggered
-  for(var i=0;i<n;i++){if(i)at+=600+Math.random()*1300;METEORS.push({t0:at,x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}}
-// 11 times a night, on the hour from 7 PM to 5 AM (Korea time). Goes by the clock, not the sky value.
-function meteorTime(h){return h>=19||h<=5}
+/* shooting stars: on the hour from 8 PM to 3 AM (Korea time), 2-5 meteors fall spread over that one minute
+   (?meteor = preview: a burst every 8s) */
+var METEORS=[],meteorPlan=null,meteorPreview=/[?&]meteor\b/.test(location.search),meteorNext=0;
+function spawnOne(at){METEORS.push({t0:at,x:0.35+Math.random()*0.6,y:Math.random()*0.7,ang:2.5+Math.random()*0.3,len:0.42+Math.random()*0.15,dur:1500+Math.random()*600})}
+function spawnMeteors(){var n=2+Math.floor(Math.random()*4),at=performance.now();for(var i=0;i<n;i++){if(i)at+=600+Math.random()*1300;spawnOne(at)}}
+// 8 times a night: 8, 9, 10, 11 PM, 12, 1, 2, 3 AM
+function meteorTime(h){return h>=20||h<=3}
 function checkMeteors(){
   var now=performance.now(),d=kstNow();
-  if(meteorPreview){if(meteorTime(d.getHours())&&now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
-  // on the hour (first minute); a key of date+hour so it fires once per hour even across midnight
-  var key=d.toDateString()+d.getHours();
-  if(meteorTime(d.getHours())&&d.getMinutes()===0&&key!==meteorHour){meteorHour=key;spawnMeteors()}
+  if(meteorPreview){if(now>meteorNext){spawnMeteors();meteorNext=now+8000}return}
+  if(!meteorTime(d.getHours())||d.getMinutes()!==0)return;
+  // same plan for every viewer this hour: how many (2-5) and at which second of the minute each one falls
+  var key=((d.getFullYear()*12+d.getMonth())*31+d.getDate())*24+d.getHours();
+  if(!meteorPlan||meteorPlan.key!==key){var r=seeded(key*7+3),n=2+Math.floor(r()*4),list=[];
+    for(var i=0;i<n;i++)list.push({s:Math.floor(i*55/n+r()*(55/n-1.5)),done:false});meteorPlan={key:key,list:list}}
+  var sec=d.getSeconds()+d.getMilliseconds()/1000;
+  meteorPlan.list.forEach(function(m){if(!m.done&&sec>=m.s){m.done=true;if(sec-m.s<3)spawnOne(now)}});
 }
 function drawMeteors(W,b,skyH){
   if(reduced||!METEORS.length)return;var now=performance.now(),keep=[];
