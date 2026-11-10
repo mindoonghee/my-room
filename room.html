@@ -547,9 +547,14 @@ function drawPoodle(x,base,o){
   var d=o.dir<0?-1:1,t=o.t||0,pose=o.pose||"sit";x=Math.round(x);base=Math.round(base);
   function P(dx,dy,w,h,c){R(c,d>0?x+dx:x-dx-w+1,base+dy,w,h)}
   var B="#e6cfa8",L="#f3e3c6",D="#c9ad84",N="#2a2320";
-  if(pose==="sleep"){
-    P(-6,-4,12,4,B);P(-5,-5,10,1,L);P(-7,-3,1,2,L);P(4,-6,4,4,B);P(4,-7,3,1,L);P(4,-5,1,3,D);P(7,-4,1,1,N);P(5,-5,2,1,D);
-    P(-4,-1,9,1,D);return}
+  if(pose==="sleep"||pose==="rest"){
+    // lying down: belly on the floor, front paws stretched out, chin resting (eyes open while resting)
+    var tw=pose==="rest"&&Math.sin(t*0.9)>0.6?Math.round(Math.sin(t*10)):0;
+    P(-6,-4,11,4,B);P(-5,-5,9,1,L);P(-8,-4+tw,2,2,L);P(-7,-3,1,1,B);
+    P(5,-1,4,1,B);P(8,-1,1,1,L);P(-4,-1,3,1,L);
+    P(4,-7,4,5,B);P(4,-8,3,1,L);P(5,-9,2,1,L);P(4,-6,1,4,D);P(8,-5,2,2,B);P(9,-5,1,1,N);
+    if(pose==="sleep")P(6,-6,2,1,D);else{P(6,-6,1,1,N);if(Math.sin(t*0.5)>0.95)P(6,-6,1,1,D)}
+    P(4,-3,3,1,"#e0679b");return}
   var wag=Math.round(Math.sin(t*(pose==="walk"?14:9))),f=pose==="walk"?(Math.sin(o.ph||0)>0?1:0):0;
   if(pose==="sit"){
     P(-4,-2,3,2,L);P(1,-2,1,2,B);P(3,-2,1,2,B);
@@ -577,8 +582,8 @@ function petTarget(){
   if(view.zone==="clean"){var cp=cleanPos(now);return {x:cp.climb?LAD:Math.max(X0+6,Math.min(X1-6,cp.x-cp.dir*13)),lv:Math.round(cp.lv),pose:"sit"}}
   var sp=SPOT[view.zone];if(!sp)return {x:90,lv:0,pose:"sit"};
   var rg=PICK[view.zone]||[sp.lv,X0,X1],x0=rg[1]+6,x1=rg[2]-6,side=sp.x+14<=x1?14:-14;
-  var tx=sp.x+side+Math.sin(now*0.23)*4;
-  return {x:Math.max(x0,Math.min(x1,tx)),lv:sp.lv,pose:view.zone==="bed"?"sleep":"sit"};
+  var tx=sp.x+side;
+  return {x:Math.max(x0,Math.min(x1,tx)),lv:sp.lv,pose:view.zone==="bed"?"sleep":"rest"};
 }
 function stepPet(dt){
   var T=petTarget();
@@ -825,7 +830,7 @@ function initGL(){
   zzzLbl=addLabel("zzz",function(v){v.x=70;v.y=FY(2)-20;return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
   signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-25;return true});
-  petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)-(pet.pose==="sleep"?9:17);return true});petLbl.el.textContent="🐾 푸치";
+  petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)-(pet.pose==="sleep"||pet.pose==="rest"?10:17);return true});petLbl.el.textContent="🐾 푸치";
   mailLbl=addLabel("mail",function(v){v.x=3;v.y=GROUND+11;return true});mailLbl.anchor="translate(0,0)";mailLbl.el.textContent="✉ 방명록";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
   fitHouse();window.addEventListener("resize",refit);window.addEventListener("orientationchange",refit);
