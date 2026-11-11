@@ -43,7 +43,8 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
 .lbl.steam{font-size:16px;color:#5aa9c9}
 .lbl.mail{pointer-events:auto;cursor:pointer;font-size:15px;line-height:1;color:#e0203a;background:#fff;border:1px solid #e6dccb;border-radius:12px;padding:5px 7px;box-shadow:0 3px 10px rgba(20,16,40,.25)}
 .lbl.mail::after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:#fff;border-right:1px solid #e6dccb;border-bottom:1px solid #e6dccb;transform:translateX(-50%) rotate(45deg)}
-.lbl.mail span{display:inline-block;animation:beat 1.6s ease-in-out infinite}
+.lbl.mail span{display:inline-block}
+.lbl.mail.has span{animation:beat 1.6s ease-in-out infinite}
 .lbl.mail:hover,.lbl.mail:focus-visible{outline:2px solid #ffd36b}
 @keyframes beat{0%,60%,100%{transform:scale(1)}30%{transform:scale(1.18)}}
 #gbDlg .card{width:min(440px,100%);max-height:min(640px,calc(100vh - 32px));box-sizing:border-box}
@@ -748,11 +749,14 @@ function cardRect(el){if(!el||el.hidden||el.offsetParent===null)return null;retu
 function fitHouse(){
   var w=window.innerWidth,h=window.innerHeight,dpr=Math.min(3,window.devicePixelRatio||1);
   canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
-  var top=8,bot=8,left=8,right=8,sr=cardRect(document.querySelector(".status")),pr=cardRect(document.querySelector(".people"));
+  var pe=document.querySelector(".people");if(pe)pe.style.transform="";
+  var top=8,bot=8,left=8,right=8,sr=cardRect(document.querySelector(".status")),pr=cardRect(pe);
   if(w<=720){if(sr)top=sr.bottom+6;if(pr)bot=h-pr.top+6}
   else{if(sr)left=sr.right+12;if(pr)right=w-pr.left+12;top=12;bot=12;if(w-left-right<240){left=8;right=8}}
   var aw=Math.max(80,w-left-right),ah=Math.max(80,h-top-bot),sd=Math.min(aw/LW,ah/LH)*dpr;if(sd>=2)sd=Math.floor(sd);
   px.s=sd/dpr;px.dpr=dpr;px.ox=Math.round((left+(aw-LW*px.s)/2)*dpr)/dpr;px.oy=Math.round((top+(ah-LH*px.s)/2)*dpr)/dpr;
+  // phones: pull the people card up so it sits right under the snowy ground (no empty strip between)
+  if(w<=720&&pr){var gap=Math.floor(pr.top-(px.oy+LH*px.s)-4);if(gap>0)pe.style.transform="translateY(-"+gap+"px)"}
 }
 var fitTimer;function typing(){var a=document.activeElement;return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")}
 function refit(){clearTimeout(fitTimer);fitTimer=setTimeout(function(){if(typing())return;resetView();fitHouse()},60)}
@@ -794,13 +798,21 @@ function drawMeteors(W,b,skyH){
   METEORS=keep;
 }
 function initSnow(){SNOW=[];var r=seeded(21);for(var i=0;i<70;i++)SNOW.push({x:r(),y:r(),v:0.02+r()*0.035,w:r()*6.28})}
+/* moon: lemon yellow, left of the roof, real phase (0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter) */
+function moonPhase(){var p=((Date.now()-947182440000)/86400000/29.530588853)%1;return p<0?p+1:p} // ref new moon 2000-01-06 18:14 UTC
+function drawMoon(cx,cy,b){var p=moonPhase(),c=Math.cos(2*Math.PI*p),R=5,a=night;cx=Math.round(cx);cy=Math.round(cy);
+  ctx.fillStyle="rgba(255,243,120,"+(0.10*a).toFixed(3)+")";for(var y=-R-2;y<=R+2;y++)for(var x=-R-2;x<=R+2;x++){if(x*x+y*y<=(R+2)*(R+2)&&x*x+y*y>R*R+1)ctx.fillRect(cx+x*b,cy+y*b,b,b)}
+  for(var yy=-R;yy<=R;yy++){var hw=Math.sqrt(R*R+1-yy*yy);for(var xx=-R;xx<=R;xx++){if(xx*xx+yy*yy>R*R+1)continue;
+    var nx=(xx+(xx<0?-0.5:xx>0?0.5:0))/(hw+0.5),lit=p<0.5?nx>c:nx<-c;
+    ctx.fillStyle=lit?"rgba(255,243,110,"+a.toFixed(2)+")":"rgba(120,120,90,"+(0.18*a).toFixed(3)+")";
+    if(lit&&/^(-2,2|-1,2|2,-2|1,1|-3,-1)$/.test(xx+","+yy))ctx.fillStyle="rgba(240,222,80,"+a.toFixed(2)+")";
+    ctx.fillRect(cx+xx*b,cy+yy*b,b,b)}}}
 function paint(t,dt){
   var W=canvas.width,H=canvas.height,d=px.dpr,s=px.s*d,ox=px.ox*d,oy=px.oy*d;
   var g=ctx.createLinearGradient(0,0,0,oy+GROUND*s);g.addColorStop(0,skyTop);g.addColorStop(1,skyBot);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   var b=Math.max(1,Math.round(s));
   if(night>0.2){var r=seeded(7);ctx.fillStyle="rgba(255,250,232,"+(night*0.85).toFixed(2)+")";for(var i=0;i<60;i++){var sx=r()*W,sy=r()*(oy+GROUND*s)*0.8;if(reduced||Math.sin(t*1.5+i)>-0.7)ctx.fillRect(Math.round(sx),Math.round(sy),b,b)}
-    var mx=Math.round(W-b*14),my=Math.round(b*12+oy*0.3);ctx.fillStyle="rgba(246,240,214,"+night.toFixed(2)+")";
-    for(var yy=-4;yy<=4;yy++)for(var xx=-4;xx<=4;xx++){if(xx*xx+yy*yy<=16&&((xx-2)*(xx-2)+(yy+1)*(yy+1)>9))ctx.fillRect(mx+xx*b,my+yy*b,b,b)}}
+    drawMoon(ox+32*s,oy+4*s,b);}
   else{var ux=Math.round(W*0.85),uy=Math.round(b*14);ctx.fillStyle="rgba(255,240,190,"+dayAmt.toFixed(2)+")";for(var y2=-3;y2<=3;y2++)for(var x2=-3;x2<=3;x2++){if(x2*x2+y2*y2<=10)ctx.fillRect(ux+x2*b,uy+y2*b,b,b)}}
   drawMeteors(W,b,oy+GROUND*s);
   ctx.fillStyle="rgba(255,255,255,"+(0.55+0.3*dayAmt).toFixed(2)+")";
@@ -862,7 +874,7 @@ function initGL(){
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
   signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-25;return true});
   petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)+1;return true});petLbl.anchor="translate(-50%,0)";petLbl.el.textContent="🐾 푸치";
-  mailLbl=addLabel("mail",function(v){v.x=10;v.y=GROUND-27;return true});mailLbl.anchor="translate(-50%,calc(-100% - 6px))";mailLbl.el.innerHTML="<span aria-hidden=\"true\">❤</span>";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;mailLbl.el.hidden=true;
+  mailLbl=addLabel("mail",function(v){v.x=10;v.y=GROUND-27;return true});mailLbl.anchor="translate(-50%,calc(-100% - 6px))";mailLbl.el.innerHTML="<span aria-hidden=\"true\">❤</span>";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;mailLbl.el.setAttribute("aria-label","방명록 보기");
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
   fitHouse();window.addEventListener("resize",refit);window.addEventListener("orientationchange",refit);
   if(window.ResizeObserver){var ro=new ResizeObserver(refit);ro.observe(document.querySelector(".status"));ro.observe(document.querySelector(".people"))}
@@ -1011,7 +1023,7 @@ var gbItems=[];
 function gbWho(){return isOwnerUI?(view.owner||"방 주인"):(myName||"손님")}
 function gbTime(at){var d=new Date(at),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"}):d.toLocaleDateString("ko-KR",{month:"short",day:"numeric"})}
 function renderGB(){var cut=Date.now()-86400000;gbItems=gbItems.filter(function(it){return it.at>cut});
-  if(mailLbl){mailLbl.el.hidden=!gbItems.length;mailLbl.el.setAttribute("aria-label","방명록 글 "+gbItems.length+"개 보기");mailLbl.el.title="방명록 "+gbItems.length+"개"}
+  if(mailLbl){var n=gbItems.length;mailLbl.el.classList.toggle("has",n>0);mailLbl.el.setAttribute("aria-label",n?"방명록 글 "+n+"개 보기":"방명록 보기");mailLbl.el.title=n?"방명록 "+n+"개":"방명록"}
   var ul=$("gbList");if($("gbDlg").hidden)return;ul.textContent="";
   if(!gbItems.length){var e=document.createElement("li");e.className="empty";e.textContent="아직 남긴 글이 없어요. 첫 글을 남겨 보세요!";ul.appendChild(e);return}
   gbItems.slice().reverse().forEach(function(it){var li=document.createElement("li"),w=document.createElement("div"),b=document.createElement("b"),s=document.createElement("span"),p=document.createElement("div");
