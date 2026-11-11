@@ -800,12 +800,10 @@ function drawMeteors(W,b,skyH){
 function initSnow(){SNOW=[];var r=seeded(21);for(var i=0;i<70;i++)SNOW.push({x:r(),y:r(),v:0.02+r()*0.035,w:r()*6.28})}
 /* moon: lemon yellow, left of the roof, real phase (0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter) */
 function moonPhase(){var p=((Date.now()-947182440000)/86400000/29.530588853)%1;return p<0?p+1:p} // ref new moon 2000-01-06 18:14 UTC
-function drawMoon(cx,cy,b){var p=moonPhase(),c=Math.cos(2*Math.PI*p),R=5,a=night;cx=Math.round(cx);cy=Math.round(cy);
-  ctx.fillStyle="rgba(255,243,120,"+(0.10*a).toFixed(3)+")";for(var y=-R-2;y<=R+2;y++)for(var x=-R-2;x<=R+2;x++){if(x*x+y*y<=(R+2)*(R+2)&&x*x+y*y>R*R+1)ctx.fillRect(cx+x*b,cy+y*b,b,b)}
-  for(var yy=-R;yy<=R;yy++){var hw=Math.sqrt(R*R+1-yy*yy);for(var xx=-R;xx<=R;xx++){if(xx*xx+yy*yy>R*R+1)continue;
-    var nx=(xx+(xx<0?-0.5:xx>0?0.5:0))/(hw+0.5),lit=p<0.5?nx>c:nx<-c;
-    ctx.fillStyle=lit?"rgba(255,243,110,"+a.toFixed(2)+")":"rgba(120,120,90,"+(0.18*a).toFixed(3)+")";
-    if(lit&&/^(-2,2|-1,2|2,-2|1,1|-3,-1)$/.test(xx+","+yy))ctx.fillStyle="rgba(240,222,80,"+a.toFixed(2)+")";
+function drawMoon(cx,cy,b){var p=moonPhase(),c=Math.cos(2*Math.PI*p),R=5,a=night;cx=Math.round(cx);cy=Math.round(cy); // 10 px wide, only the lit part is drawn
+  for(var yy=-5;yy<5;yy++){var dy=yy+0.5,hw=Math.sqrt(R*R-dy*dy);for(var xx=-5;xx<5;xx++){var dx=xx+0.5;if(dx*dx+dy*dy>R*R)continue;
+    var lit=p<0.5?(dx+0.25)/hw>c:(dx-0.25)/hw<-c;if(!lit)continue; // a pixel lights when its outer part is sunlit, so thin crescents still show
+    ctx.fillStyle=/^(-2,1|-1,1|1,-3|1,0|-3,-2)$/.test(xx+","+yy)?"rgba(240,222,80,"+a.toFixed(2)+")":"rgba(255,243,110,"+a.toFixed(2)+")";
     ctx.fillRect(cx+xx*b,cy+yy*b,b,b)}}}
 function paint(t,dt){
   var W=canvas.width,H=canvas.height,d=px.dpr,s=px.s*d,ox=px.ox*d,oy=px.oy*d;
