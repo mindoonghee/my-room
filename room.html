@@ -40,6 +40,9 @@ body{background:radial-gradient(120% 90% at 50% 30%,var(--bg) 0%,var(--bg2) 100%
 .lbl.guest{font-size:12px;background:rgba(0,0,0,.55);color:#fff;padding:2px 8px;border-radius:99px}
 .lbl.zzz{font-family:var(--display);font-size:20px;color:#8b8fd9;text-shadow:0 1px 0 rgba(255,255,255,.4);animation:zz 2.4s ease-in-out infinite}
 .lbl.sign{font-family:var(--display);font-size:15px;background:#fff6dc;color:#5a4410;border:2px solid #d9b45a;border-radius:6px;padding:4px 10px}
+.lbl.sign b{font-weight:400;display:block}
+.lbl.sign span{display:block;font-family:var(--body);font-size:12px;line-height:1.35;color:#6b5420;white-space:normal;max-width:170px;min-width:96px;margin-top:2px;overflow-wrap:anywhere}
+.lbl.sign span:empty{display:none}
 .lbl.steam{font-size:16px;color:#5aa9c9}
 .lbl.mail{pointer-events:auto;cursor:pointer;font-size:15px;line-height:1;color:#e0203a;background:#fff;border:1px solid #e6dccb;border-radius:12px;padding:5px 7px;box-shadow:0 3px 10px rgba(20,16,40,.25)}
 .lbl.mail::after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:#fff;border-right:1px solid #e6dccb;border-bottom:1px solid #e6dccb;transform:translateX(-50%) rotate(45deg)}
@@ -870,7 +873,7 @@ function initGL(){
   mainLbl.el.innerHTML="<b></b><span></span>";
   zzzLbl=addLabel("zzz",function(v){v.x=70;v.y=FY(2)-20;return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
-  signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-25;return true});
+  signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-31;return true});signLbl.el.innerHTML="<b></b><span></span>";
   petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)+1;return true});petLbl.anchor="translate(-50%,0)";petLbl.el.textContent="🐾 푸치";
   mailLbl=addLabel("mail",function(v){v.x=10;v.y=GROUND-27;return true});mailLbl.anchor="translate(-50%,calc(-100% - 6px))";mailLbl.el.innerHTML="<span aria-hidden=\"true\">❤</span>";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;mailLbl.el.setAttribute("aria-label","방명록 보기");
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
@@ -892,7 +895,8 @@ function renderStatus(){
   var a=$("avail");a.className="pill "+view.avail;a.querySelector("span").textContent=AVAIL[view.avail];
   $("ago").textContent=ago(view.updatedAt);
   if(hasGL){mainLbl.el.querySelector("b").textContent=view.owner||"방 주인";var lsp=mainLbl.el.querySelector("span"),ltx=ownerSay?"💬 "+ownerSay.text:(view.msg||"");lsp.textContent=ltx;lsp.style.display=ltx?"":"none";mainLbl.el.classList.toggle("talk",!!ownerSay);mainLbl.el.hidden=view.zone==="out";
-    signLbl.el.textContent=(view.owner||"주인")+" 외출 중"}
+    // going out: the status message (or a chat line) shows under the "외출 중" sign, since the name tag is hidden
+    signLbl.el.querySelector("b").textContent=(view.owner||"주인")+" 외출 중";signLbl.el.querySelector("span").textContent=ltx;signLbl.anchor=ltx?"translate(-22px,-100%)":null}
   document.title="나만의 방";
 }
 setInterval(function(){$("ago").textContent=ago(view.updatedAt)},30000);
@@ -1135,7 +1139,7 @@ function wsRoom(){
     ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
     ws.onopen=function(){backoff=1000;send({t:"id",vid:VID});send({t:"presence",patch:mine});var k=store("myroom.ownerKey");if(k)send({t:"auth",key:k})};
     ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
-      if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb);chatItems=[];(Array.isArray(m.chats)?m.chats:[]).forEach(function(x){onChat(x,false,true)});renderChat();ownerStatusLoaded(m.status)}
+      if(m.t==="hello"){myId=m.id;applyStatus(m.status);onGB(m.gb);renderChat();/* no chat history from the server; on reconnect this tab keeps what it already saw */ownerStatusLoaded(m.status)}
       else if(m.t==="gb")onGB(m.list);
       else if(m.t==="chat")onChat(m,m.from===myId,false);
       else if(m.t==="chat_err")toast("조금 천천히 보내 주세요.");
