@@ -873,7 +873,7 @@ function initGL(){
   mainLbl.el.innerHTML="<b></b><span></span>";
   zzzLbl=addLabel("zzz",function(v){v.x=70;v.y=FY(2)-20;return true});zzzLbl.el.textContent="Z z z";
   steamLbl=addLabel("zzz steam",function(v){v.x=150;v.y=FY(0)-20;return true});steamLbl.el.textContent="보글보글";
-  signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-31;return true});signLbl.el.innerHTML="<b></b><span></span>";
+  signLbl=addLabel("sign",function(v){v.x=31;v.y=FY(0)-50;return true});signLbl.el.innerHTML="<b></b><span></span>";
   petLbl=addLabel("pet",function(v){v.x=pet.x;v.y=FY(pet.lv)+1;return true});petLbl.anchor="translate(-50%,0)";petLbl.el.textContent="🐾 푸치";
   mailLbl=addLabel("mail",function(v){v.x=10;v.y=GROUND-27;return true});mailLbl.anchor="translate(-50%,calc(-100% - 6px))";mailLbl.el.innerHTML="<span aria-hidden=\"true\">❤</span>";mailLbl.el.setAttribute("role","button");mailLbl.el.tabIndex=0;mailLbl.el.setAttribute("aria-label","방명록 보기");
   mailLbl.el.addEventListener("click",openGB);mailLbl.el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openGB()}});
