@@ -50,8 +50,7 @@ function pruneGuestbook() {
 }
 pruneGuestbook();
 let gbLastGlobal = [];
-// ---------- 대화 (메모리에만, 최근 30개) ----------
-let chats = [];
+// ---------- 대화: 서버에 저장하지 않고 지금 접속한 사람들에게만 바로 전달 ----------
 const BAD_CHARS = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff]", "g");
 function cleanText(s, n) {
   return String(s == null ? "" : s).replace(BAD_CHARS, "").trim().slice(0, n);
@@ -137,7 +136,8 @@ wss.on("connection", (ws) => {
   c.presence.role = "guest"; c.presence.joinedAt = c.joinedAt;
   clients.set(ws, c);
   if (pruneGuestbook()) saveGuestbook();
-  ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook, chats }));
+  // 새로 들어온 사람에게는 예전 대화를 보내지 않아요 (들어온 뒤의 대화만 보여요)
+  ws.send(JSON.stringify({ t: "hello", id: c.id, status, gb: guestbook, chats: [] }));
   broadcastPeers();
 
   ws.on("pong", () => { c.alive = true; });
@@ -172,7 +172,6 @@ wss.on("connection", (ws) => {
       c.chatAt = now;
       const name = c.owner ? (status.owner || "방 주인") : (cleanText(c.presence.name, 16) || "손님");
       const msg = { t: "chat", id: crypto.randomBytes(4).toString("hex"), from: c.id, name, owner: c.owner, text, at: now };
-      chats.push(msg); if (chats.length > 30) chats.shift();
       broadcast(msg);
     }
     else if (m.t === "gb_add") {
