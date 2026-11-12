@@ -750,7 +750,10 @@ function rebuildOwner(){}
 
 /* ---------- layout: fit the house between the cards ---------- */
 function cardRect(el){if(!el||el.hidden||el.offsetParent===null)return null;return el.getBoundingClientRect()}
+// pinch-zoom on phones: innerWidth/innerHeight shrink to the zoomed area, so never re-fit the house while zoomed in
+function pinchZoomed(){var v=window.visualViewport;return !!v&&v.scale>1.02}
 function fitHouse(){
+  if(pinchZoomed()&&px.fitted)return;px.fitted=true;
   var w=window.innerWidth,h=window.innerHeight,dpr=Math.min(3,window.devicePixelRatio||1);
   canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
   var pe=document.querySelector(".people");if(pe)pe.style.transform="";
@@ -763,10 +766,10 @@ function fitHouse(){
   if(w<=720&&pr){var gap=Math.floor(pr.top-(px.oy+LH*px.s)-4);if(gap>0)pe.style.transform="translateY(-"+gap+"px)"}
 }
 var fitTimer;function typing(){var a=document.activeElement;return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")}
-function refit(){clearTimeout(fitTimer);fitTimer=setTimeout(function(){if(typing())return;resetView();fitHouse()},60)}
+function refit(){clearTimeout(fitTimer);fitTimer=setTimeout(function(){if(typing()||pinchZoomed())return;resetView();fitHouse()},60)}
 // phones: when the keyboard closes, undo any page scroll/zoom shift the browser left behind
 function resetView(){if(window.scrollX||window.scrollY)window.scrollTo(0,0);if(document.scrollingElement)document.scrollingElement.scrollTop=0}
-document.addEventListener("focusout",function(){setTimeout(function(){if(!typing()){resetView();fitHouse()}},120)});
+document.addEventListener("focusout",function(){setTimeout(function(){if(!typing()&&!pinchZoomed()){resetView();fitHouse()}},120)});
 if(window.visualViewport)window.visualViewport.addEventListener("resize",function(){if(!typing())refit()});
 
 /* ---------- main canvas: sky, snow, ground, house ---------- */
