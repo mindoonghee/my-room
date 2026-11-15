@@ -24,7 +24,7 @@ const CHARS = ["m", "f", "cat", "dog", "tiger", "rabbit", "mouse", "bear", "roac
 if (!OWNER_KEY) console.warn("[경고] OWNER_KEY 환경변수가 없어서 아무도 방 주인 상태를 바꿀 수 없어요.");
 
 // ---------- 방 주인 상태 저장 ----------
-let status = { owner: process.env.OWNER_NAME || "", zone: "desk", msg: "", avail: "free", color: "#4f7cf0", char: "m", updatedAt: 0 };
+let status = { owner: process.env.OWNER_NAME || "", zone: "bed", msg: "", avail: "free", color: "#4f7cf0", char: "m", updatedAt: 0 };
 try { status = Object.assign(status, JSON.parse(fs.readFileSync(STATUS_FILE, "utf8"))); } catch (e) { /* 처음 실행 */ }
 function saveStatus() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(STATUS_FILE, JSON.stringify(status)); }
@@ -59,7 +59,7 @@ function validStatus(s) {
   if (!s || typeof s !== "object") return null;
   return {
     owner: cleanText(s.owner, 12),
-    zone: ZONES.includes(s.zone) ? s.zone : "desk",
+    zone: ZONES.includes(s.zone) ? s.zone : "bed",
     msg: cleanText(s.msg, 40),
     avail: AVAILS.includes(s.avail) ? s.avail : "free",
     color: /^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#4f7cf0",
