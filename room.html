@@ -225,7 +225,7 @@ input[type=text],input[type=password]{font:inherit;font-size:16px;padding:8px 10
 <div class="card fullbar" id="fullBar" role="status" hidden><b>방이 꽉 찼어요 (10/10명)</b><span class="hint">자리가 나면 자동으로 들어가요. 그동안 방 안은 구경할 수 있어요.</span></div>
 <div id="toast" role="status"></div></template>
 <div id="app"></div>
-<script type="application/json" id="state">{"owner":"","zone":"desk","msg":"","avail":"free","color":"#4f7cf0","updatedAt":0}</script>
+<script type="application/json" id="state">{"owner":"","zone":"bed","msg":"","avail":"free","color":"#4f7cf0","updatedAt":0}</script>
 <script id="main">
 (function(){
 "use strict";
@@ -263,7 +263,7 @@ function clean(s,n){return String(s==null?"":s).replace(BADCH,"").trim().slice(0
 function hashColor(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return COLORS[Math.abs(h)%COLORS.length]}
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){try{if(v===undefined)return sessionStorage.getItem(k);sessionStorage.setItem(k,v)}catch(e2){}}return null}
 
-var view={owner:clean(SAVED.owner,12),zone:ZONES[SAVED.zone]?SAVED.zone:"desk",msg:clean(SAVED.msg,40),avail:AVAIL[SAVED.avail]?SAVED.avail:"free",color:COLORS.indexOf(SAVED.color)>=0?SAVED.color:COLORS[0],updatedAt:+SAVED.updatedAt||0};
+var view={owner:clean(SAVED.owner,12),zone:ZONES[SAVED.zone]?SAVED.zone:"bed",msg:clean(SAVED.msg,40),avail:AVAIL[SAVED.avail]?SAVED.avail:"free",color:COLORS.indexOf(SAVED.color)>=0?SAVED.color:COLORS[0],updatedAt:+SAVED.updatedAt||0};
 var isOwnerUI=false, room=null, artifactApi=null, myName=clean(store("myroom.name"),16);
 var reduced=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -992,7 +992,7 @@ var saving=false;
 var saveTimer;
 function applyStatus(st){
   if(!st)return;SAVED=st;
-  var n={owner:clean(st.owner,12),zone:ZONES[st.zone]?st.zone:"desk",msg:clean(st.msg,40),avail:AVAIL[st.avail]?st.avail:"free",color:COLORS.indexOf(st.color)>=0?st.color:COLORS[0],updatedAt:+st.updatedAt||0,char:CHARS[st.char]?st.char:"m"};
+  var n={owner:clean(st.owner,12),zone:ZONES[st.zone]?st.zone:"bed",msg:clean(st.msg,40),avail:AVAIL[st.avail]?st.avail:"free",color:COLORS.indexOf(st.color)>=0?st.color:COLORS[0],updatedAt:+st.updatedAt||0,char:CHARS[st.char]?st.char:"m"};
   if(isOwnerUI&&(window.ROOM_SERVER||(!saving&&isDirty()))){view.updatedAt=n.updatedAt;renderStatus();return}
   view=n;rebuildOwner();
   if(isOwnerUI){pend={zone:n.zone,msg:n.msg,avail:n.avail,owner:n.owner,color:n.color,char:n.char};$("ownerName").value=n.owner;$("msgIn").value=n.msg;syncChips();$("dirty").hidden=true;$("saveBtn").disabled=true}
